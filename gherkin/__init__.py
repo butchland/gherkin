@@ -36,6 +36,11 @@ class Lexer(object):
                     i += size
                     break
 
+        # Closing open indentations
+        while self.current_indent_size > 0:
+            self.current_indent_size -= len(self.indent_stack.pop())
+            tokens.append(('dedent', '\n'))
+
         return tokens
 
     def _exec(self, pattern, chunk):
@@ -43,22 +48,16 @@ class Lexer(object):
         return found and found[0]
 
     def scan_identifier(self, chunk):
-        found = self._exec(r'\A([^\:]+)(\:\s*)', chunk)
-        return found and ('identifier', found[0], sum(map(len, found)))
+        found = self._exec(r'\A([^\:\n]+)\:(\s*)', chunk)
+        return found and ('identifier', found[0], sum(map(len, found)) + 1)
 
     def scan_text(self, chunk):
         found = self._exec(r'\A([^\n]+)', chunk)
         return found and ('text', found, len(found))
 
     def scan_newline(self, chunk):
-        # found = self._exec(r'\n\s+', chunk)
-        # We're still inside of the indentation, let's move forward
-
         found = self._exec(r'\n$', chunk)
-        if found:
-            self.current_indent_size = 0
-            self.indentation = []
-            return ('dedent', '\n', 1)
+        return found and ('', '', len(found))
 
     def scan_indent(self, chunk):
         found = self._exec(r'\A\n(\s+)', chunk)
@@ -69,13 +68,15 @@ class Lexer(object):
             new_indent = found
             new_indent_size = len(found)
 
-            # Handling deindentation
-            if new_indent_size < self.current_indent_size:
-                return ('dedent', '', 0)
-
             # Handling same level indentation
             if new_indent_size == self.current_indent_size:
                 return ('', '', new_indent_size + 1)
+
+            # Handling deindentation
+            elif new_indent_size < self.current_indent_size:
+                while len(found) < self.current_indent_size:
+                    self.current_indent_size -= len(self.indent_stack.pop())
+                return ('dedent', found, len(found))
 
             # Handling new indentation level
             self.indent_stack.append(new_indent)
