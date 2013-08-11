@@ -17,6 +17,7 @@ class Lexer(object):
             handlers = [
                 self.scan_identifier,
                 self.scan_indent,
+                self.scan_dedent,
                 self.scan_text,
                 self.scan_newline,
             ]
@@ -59,10 +60,19 @@ class Lexer(object):
         found = self._exec(r'\n$', chunk)
         return found and ('', '', len(found))
 
+    def scan_dedent(self, chunk):
+        found = self._exec(r'\A(\n)[^ ]', chunk)
+        if found and self.current_indent_size > 0:
+            self.current_indent_size = 0
+            self.indent_stack = []
+            return ('dedent', found, len(found))
+
     def scan_indent(self, chunk):
-        found = self._exec(r'\A\n(\s+)', chunk)
+        # Don't use `\s` here, since it contains `\n` on it
+        found = self._exec(r'\A\n( +)', chunk)
 
         if found:
+
             # Alright, we're inside of an indentation, let's see if it's bigger
             # or smaller than the current one
             new_indent = found

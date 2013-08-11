@@ -33,6 +33,8 @@ def test_lexer_two_features():
   Description of my feature in
   multiple lines
 
+
+
 Feature: Another feature
   With another
   multiline
