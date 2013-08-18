@@ -1,6 +1,27 @@
 from gherkin import Lexer
 
 
+def test_lexer_read_metadata():
+    # Given that I have an instance of a lexer
+    lexer = Lexer('en')
+
+    # When I scan a feature with lang and encoding
+    nodes = lexer.scan('''# language: en
+# encoding: utf-8
+
+Feature: My lame feature
+     My lame description
+''')
+
+    # Then I see that the corresponding node list is correct
+    nodes.should.equal([
+        ('metadata', ('language', 'en')),
+        ('metadata', ('encoding', 'utf-8')),
+        ('identifier', ('Feature', 'My lame feature')),
+        ('text', 'My lame description'),
+    ])
+
+
 def test_lexer_single_feature():
     "The lexer should be able to emit tokens for the Feature identifier"
 

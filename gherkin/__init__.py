@@ -46,6 +46,7 @@ class Lexer(object):
 
             # Expressions to find out wtf is that chunk
             handlers = [
+                self.scan_conf,
                 self.scan_comment,
                 self.scan_step,
                 self.scan_examples,
@@ -75,6 +76,10 @@ class Lexer(object):
     @matcher(r'\A(\n+)')
     def cookie_monster(self, found):
         return ('', found, len(found))
+
+    @matcher(r'\A(\s*\#\s*)(language|encoding)(:\s*)([^\n]+)')
+    def scan_conf(self, found):
+        return ('metadata', (found[1], found[3]), sum(map(len, found)))
 
     @matcher(r'\A(\s*\#\s*)([^\n]+)')
     def scan_comment(self, found):
