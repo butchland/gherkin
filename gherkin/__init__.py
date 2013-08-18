@@ -22,6 +22,7 @@ class Lexer(object):
                 self.scan_step,
                 self.scan_examples,
                 self.scan_identifier,
+                self.scan_tags,
                 self.scan_text,
                 self.cookie_monster,
             ]
@@ -35,7 +36,7 @@ class Lexer(object):
                     # The `scan_indent` handler might not return tokens, but we
                     # still need to skip the newline character found inside of
                     # the same indent level
-                    if kind:
+                    if kind:    # noqa
                         tokens.append((kind, token))
 
                     i += size
@@ -51,16 +52,20 @@ class Lexer(object):
         found = self._exec(r'\A(\n+)', chunk)
         return found and ('', found, len(found))
 
+    def scan_comment(self, chunk):
+        found = self._exec(r'\A(\s*\#\s*)([^\n]+)', chunk)
+        return found and ('comment', found[1], sum(map(len, found)))
+
+    def scan_tags(self, chunk):
+        found = self._exec(r'\A(\s*)@([^\s]+)', chunk)
+        return found and ('tag', found[1], sum(map(len, found))+1)
+
     def scan_examples(self, chunk):
         found = self._exec(r'\A(\:?\s+\|)([^\n]+)(\|\n)', chunk, re.M)
         if found:
             s, found, s2 = found
             vals = map(str.strip, found.split('|'))
             return ('row', tuple(vals), sum(map(len, [s, found, s2])))
-
-    def scan_comment(self, chunk):
-        found = self._exec(r'\A(\s*\#\s*)([^\n]+)', chunk)
-        return found and ('comment', found[1], sum(map(len, found)))
 
     def scan_identifier(self, chunk):
         found = self._exec(r'\A([^\:\n]+)(\: *)([^\n\#]*)', chunk)

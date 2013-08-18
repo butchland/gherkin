@@ -218,3 +218,39 @@ Feature: Name
         ('row', ('superuser', 'posts')),
         ('row', ('normal user', 'comments')),
     ])
+
+
+def test_lexer_tags():
+    # Given that I have a tasty instance of a delicious localized lexer
+    lexer = Lexer('en')
+
+    # When I scan the description of a feature with some tags
+    nodes = lexer.scan('''\
+@tag1 @tag|2
+Feature: Name
+
+  @tag.3 @tag-4
+  Scenario: Hacker list
+    Given that I have a list of hackers:
+      | name    | email             |
+      | lincoln | lincoln@wlabs.com |
+      | gabriel | gabriel@wlabs.com |
+    When I create them as "super-ultra-users"
+''')
+
+    # Then I see that the correspond list of tokens is right
+    nodes.should.equal([
+        ('tag', 'tag1'),
+        ('tag', 'tag|2'),
+        ('identifier', ('Feature', 'Name')),
+
+        ('tag', 'tag.3'),
+        ('tag', 'tag-4'),
+        ('identifier', ('Scenario', 'Hacker list')),
+
+        ('step', ('Given', 'that I have a list of hackers')),
+        ('row', ('name', 'email')),
+        ('row', ('lincoln', 'lincoln@wlabs.com')),
+        ('row', ('gabriel', 'gabriel@wlabs.com')),
+        ('step', ('When', 'I create them as "super-ultra-users"')),
+    ])
