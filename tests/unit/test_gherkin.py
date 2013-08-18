@@ -146,3 +146,75 @@ Feature: Paladin
         ('step', ('When', 'I open the cookie jar')),
         ('step', ('Then', 'I should eat a delicious cookie')),
     ])
+
+
+def test_lexer_examples():
+    # Given that I have a tasty instance of a delicious localized lexer
+    lexer = Lexer('en')
+
+    # When I scan the description of a feature with a scenario outlines
+    nodes = lexer.scan('''\
+Feature: Name
+
+  Scenario: Hacker list
+    Given that I have a list of hackers:
+      | name    | email             |
+      | lincoln | lincoln@wlabs.com |
+      | gabriel | gabriel@wlabs.com |
+    When I create them as "super-ultra-users"
+''')
+
+    # Then I see that the correspond list of tokens is right
+    nodes.should.equal([
+        ('identifier', ('Feature', 'Name')),
+
+        ('identifier', ('Scenario', 'Hacker list')),
+
+        ('step', ('Given', 'that I have a list of hackers')),
+        ('row', ('name', 'email')),
+        ('row', ('lincoln', 'lincoln@wlabs.com')),
+        ('row', ('gabriel', 'gabriel@wlabs.com')),
+        ('step', ('When', 'I create them as "super-ultra-users"')),
+    ])
+
+
+def test_lexer_scenario_outlines():
+    # Given that I have a tasty instance of a delicious localized lexer
+    lexer = Lexer('en')
+
+    # When I scan the description of a feature with a scenario outlines
+    nodes = lexer.scan('''\
+Feature: Name
+
+  Scenario Outline: Hacker list
+    Given I have the users:
+      | name    | email             |
+      | lincoln | lincoln@wlabs.com |
+      | gabriel | gabriel@wlabs.com |
+    When I create them as "<role>"
+    Then they have permission to "edit <content type>"
+
+  Examples:
+    | role        | content type |
+    | superuser   | posts        |
+    | normal user | comments     |
+''')
+
+    # Then I see that the correspond list of tokens is right
+    nodes.should.equal([
+        ('identifier', ('Feature', 'Name')),
+
+        ('identifier', ('Scenario Outline', 'Hacker list')),
+
+        ('step', ('Given', 'I have the users')),
+        ('row', ('name', 'email')),
+        ('row', ('lincoln', 'lincoln@wlabs.com')),
+        ('row', ('gabriel', 'gabriel@wlabs.com')),
+
+        ('step', ('When', 'I create them as "<role>"')),
+        ('step', ('Then', 'they have permission to "edit <content type>"')),
+        ('identifier', ('Examples', '')),
+        ('row', ('role', 'content type')),
+        ('row', ('superuser', 'posts')),
+        ('row', ('normal user', 'comments')),
+    ])

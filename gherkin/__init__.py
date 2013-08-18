@@ -18,9 +18,10 @@ class Lexer(object):
 
             # Expressions to find out wtf is that chunk
             handlers = [
-                self.scan_step,
-                self.scan_identifier,
                 self.scan_comment,
+                self.scan_step,
+                self.scan_examples,
+                self.scan_identifier,
                 self.scan_text,
                 self.cookie_monster,
             ]
@@ -50,6 +51,13 @@ class Lexer(object):
         found = self._exec(r'\A(\n+)', chunk)
         return found and ('', found, len(found))
 
+    def scan_examples(self, chunk):
+        found = self._exec(r'\A(\:?\s+\|)([^\n]+)(\|\n)', chunk, re.M)
+        if found:
+            s, found, s2 = found
+            vals = map(str.strip, found.split('|'))
+            return ('row', tuple(vals), sum(map(len, [s, found, s2])))
+
     def scan_comment(self, chunk):
         found = self._exec(r'\A(\s*\#\s*)([^\n]+)', chunk)
         return found and ('comment', found[1], sum(map(len, found)))
@@ -63,7 +71,7 @@ class Lexer(object):
                     sum(map(len, found)))
 
     def scan_step(self, chunk):
-        found = self._exec(r'\A(\s*)(Given|When|Then|And|But) *([^\n\#]+)', chunk)
+        found = self._exec(r'\A(\s*)(Given|When|Then|And|But) *([^\n\#\:]+)', chunk)
         if found:
             _, name, text = found
             return ('step', (name, text), sum(map(len, found))+1)
