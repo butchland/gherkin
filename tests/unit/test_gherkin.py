@@ -259,3 +259,40 @@ Feature: Name
         ('row', ('gabriel', 'gabriel@wlabs.com')),
         ('step', ('When', 'I create them as "super-ultra-users"')),
     ])
+
+
+def test_multiline_strings():
+    "It should be possible to declare multiline strings in steps"
+
+    # Given that I have a tasty instance of a delicious localized lexer
+    lexer = Lexer('en')
+
+    # When I scan the description of a feature with some multiline strings
+    nodes = lexer.scan('''\
+Feature: Create new files
+
+  As a user
+  I need to create files
+
+  Background:
+    Given an empty directory
+    When I create the file "blah" with:
+      """
+      This is the content of my file
+      there are multiple lines here, can
+      ya see? :)
+      """
+''')
+
+    # Then I see that the correspond list of tokens is right
+    nodes.should.equal([
+        ('identifier', ('Feature', 'Create new files')),
+        ('text', 'As a user'),
+        ('text', 'I need to create files'),
+        ('identifier', ('Background', '')),
+        ('step', ('Given', 'an empty directory')),
+        ('step', ('When', 'I create the file "blah" with')),
+        ('text', ('This is the content of my file\n'
+                  'there are multiple lines here, can\n'
+                  'ya see? :)')),
+    ])

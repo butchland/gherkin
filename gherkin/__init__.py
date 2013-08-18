@@ -53,6 +53,7 @@ class Lexer(object):
                 self.scan_examples,
                 self.scan_identifier,
                 self.scan_tags,
+                self.scan_multiline_strings,
                 self.scan_text,
                 self.cookie_monster,
             ]
@@ -107,6 +108,11 @@ class Lexer(object):
     def scan_step(self, found):
         _, name, _, text = found
         return ('step', (name, text), sum(map(len, found)))
+
+    @matcher(r'\A(\:?\s*""")([^"""]+)')
+    def scan_multiline_strings(self, found):
+        lines = (f.strip() for f in found[1].splitlines() if f.strip())
+        return ('text', '\n'.join(lines), sum(map(len, found))+3)
 
     @matcher(r'\A([^\n\#]+)')
     def scan_text(self, found):
