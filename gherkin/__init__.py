@@ -1,5 +1,6 @@
-import re
+from __future__ import unicode_literals
 from functools import wraps
+import re
 
 
 class matcher(object):
@@ -91,9 +92,9 @@ class Lexer(object):
 
     @matcher(r'\A(\:?\s+\|)([^\n]+)(\|\n)', re.M)
     def scan_examples(self, found):
-        s, found, s2 = found
-        vals = map(str.strip, found.split('|'))
-        return ('row', tuple(vals), sum(map(len, [s, found, s2])))
+        return ('row',
+                tuple(f.strip() for f in found[1].split('|')),
+                sum(map(len, found)))
 
     @matcher(r'\A([^\:\n]+)(\: *)([^\n\#]*)')
     def scan_identifier(self, found):
@@ -104,8 +105,8 @@ class Lexer(object):
 
     @matcher(r'\A(\s*)(Given|When|Then|And|But)( *)([^\n\#\:]+)')
     def scan_step(self, found):
-        s1, name, s2, text = found
-        return ('step', (name, text), sum(map(len, [s1, s2, name, text])))
+        _, name, _, text = found
+        return ('step', (name, text), sum(map(len, found)))
 
     @matcher(r'\A([^\n\#]+)')
     def scan_text(self, found):

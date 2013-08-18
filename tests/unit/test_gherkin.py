@@ -1,7 +1,10 @@
+from __future__ import unicode_literals
 from gherkin import Lexer
 
 
-def test_lexer_read_metadata():
+def test_read_metadata():
+    "It should be possible to read metadata from feature files"
+
     # Given that I have an instance of a lexer
     lexer = Lexer('en')
 
@@ -42,7 +45,9 @@ def test_lexer_single_feature():
     ])
 
 
-def test_lexer_feature_with_comments():
+def test_feature_with_comments():
+    "It should be possible to add comments to features and text"
+
     # Given that I have a tasty instance of a delicious localized lexer
     lexer = Lexer('en')
 
@@ -66,38 +71,9 @@ Feature: Name     # More comments
     ])
 
 
-def test_lexer_two_features():
-    # Given that I have an instance of a localized lexer
-    lexer = Lexer('en')
+def test_feature_with_background():
+    "It should be possible to declare a background for a feature"
 
-    # When I scan two feature descriptions
-    nodes = lexer.scan('''\
-Feature: My Feature
-  Description of my feature in
-  multiple lines
-
-
-
-Feature: Another feature
-  With another
-  multiline
-  description!
-''')
-
-    # Then I see that the corresponding node list is correct
-    nodes.should.equal([
-        ('identifier', ('Feature', 'My Feature')),
-        ('text', 'Description of my feature in'),
-        ('text', 'multiple lines'),
-
-        ('identifier', ('Feature', 'Another feature')),
-        ('text', 'With another'),
-        ('text', 'multiline'),
-        ('text', 'description!'),
-    ])
-
-
-def test_lexer_feature_with_background():
     # Given that I have a tasty instance of a delicious localized lexer
     lexer = Lexer('en')
 
@@ -127,7 +103,9 @@ Feature: Random
     ])
 
 
-def test_lexer_weird_syntax():
+def test_random_spaces_in_syntax():
+    "It should be possible to use any syntax when declaring steps"
+
     # Given that I have a tasty instance of a delicious localized lexer
     lexer = Lexer('en')
 
@@ -169,7 +147,9 @@ Feature: Paladin
     ])
 
 
-def test_lexer_examples():
+def test_tables():
+    "It should be possible to declare tables in steps"
+
     # Given that I have a tasty instance of a delicious localized lexer
     lexer = Lexer('en')
 
@@ -199,7 +179,9 @@ Feature: Name
     ])
 
 
-def test_lexer_scenario_outlines():
+def test_scenario_outlines():
+    "It should be possible to declare a complete scenario outline"
+
     # Given that I have a tasty instance of a delicious localized lexer
     lexer = Lexer('en')
 
@@ -241,7 +223,9 @@ Feature: Name
     ])
 
 
-def test_lexer_tags():
+def test_tags():
+    "It should be possible to read tags"
+
     # Given that I have a tasty instance of a delicious localized lexer
     lexer = Lexer('en')
 
