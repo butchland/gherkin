@@ -191,8 +191,8 @@ Feature: Name
       | name    | email             |
       | lincoln | lincoln@wlabs.com |
       | gabriel | gabriel@wlabs.com |
-    When I create them as "<role>"
-    Then they have permission to "edit <content type>"
+    When   I create them as "<role>"
+    Then   they have permission to "edit <content type>"
 
   Examples:
     | role        | content type |

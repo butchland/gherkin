@@ -46,7 +46,7 @@ class Lexer(object):
 
     def cookie_monster(self, chunk):
         found = self._exec(r'\A(\n+)', chunk)
-        return found and ('', found, len(found))
+        return ('', found, len(found))
 
     def scan_comment(self, chunk):
         found = self._exec(r'\A(\s*\#\s*)([^\n]+)', chunk)
@@ -72,10 +72,10 @@ class Lexer(object):
                     sum(map(len, found)))
 
     def scan_step(self, chunk):
-        found = self._exec(r'\A(\s*)(Given|When|Then|And|But) *([^\n\#\:]+)', chunk)
+        found = self._exec(r'\A(\s*)(Given|When|Then|And|But)( *)([^\n\#\:]+)', chunk)
         if found:
-            _, name, text = found
-            return ('step', (name, text), sum(map(len, found))+1)
+            s1, name, s2, text = found
+            return ('step', (name, text), sum(map(len, [s1, s2, name, text])))
 
     def scan_text(self, chunk):
         found = self._exec(r'\A([^\n\#]+)', chunk)
