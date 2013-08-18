@@ -1,7 +1,36 @@
 import re
+from functools import wraps
+
+
+def matcher(pattern, flags=0):
+    """Decorator for creating new matchers for the lexer analyzer.
+
+    This decorator compiles an RE out of the pattern (and flags) received and
+    wrap the actual scan operation with a function that executes the compiled
+    RE, calling the actual function if the matching is successful.
+    """
+
+    def assigner(func):
+        # Yay, this line will get called only once per pattern since the
+        # matcher (and thus the assigner functions) are called when python is
+        # still reading the decorated methods from the `Lexer` class.
+        regex = re.compile(pattern, flags=flags)
+
+        @wraps(func)
+        def decorator(self, chunk):
+            # The actuall matcher won't get called unless the pattern can be
+            # matched agains the piece of text received from the lexer.
+            found = regex.findall(chunk)
+            if found:
+                return func(self, found[0])
+
+        return decorator
+
+    return assigner
 
 
 class Lexer(object):
+
     def __init__(self, lang):
         pass
 
@@ -40,45 +69,38 @@ class Lexer(object):
 
         return tokens
 
-    def _exec(self, pattern, chunk, flags=0):
-        found = re.compile(pattern, flags=flags).findall(chunk)
-        return found and found[0]
-
-    def cookie_monster(self, chunk):
-        found = self._exec(r'\A(\n+)', chunk)
+    @matcher(r'\A(\n+)')
+    def cookie_monster(self, found):
         return ('', found, len(found))
 
-    def scan_comment(self, chunk):
-        found = self._exec(r'\A(\s*\#\s*)([^\n]+)', chunk)
-        return found and ('comment', found[1], sum(map(len, found)))
+    @matcher(r'\A(\s*\#\s*)([^\n]+)')
+    def scan_comment(self, found):
+        return ('comment', found[1], sum(map(len, found)))
 
-    def scan_tags(self, chunk):
-        found = self._exec(r'\A(\s*)@([^\s]+)', chunk)
-        return found and ('tag', found[1], sum(map(len, found))+1)
+    @matcher(r'\A(\s*)@([^\s]+)')
+    def scan_tags(self, found):
+        return ('tag', found[1], sum(map(len, found))+1)
 
-    def scan_examples(self, chunk):
-        found = self._exec(r'\A(\:?\s+\|)([^\n]+)(\|\n)', chunk, re.M)
-        if found:
-            s, found, s2 = found
-            vals = map(str.strip, found.split('|'))
-            return ('row', tuple(vals), sum(map(len, [s, found, s2])))
+    @matcher(r'\A(\:?\s+\|)([^\n]+)(\|\n)', re.M)
+    def scan_examples(self, found):
+        s, found, s2 = found
+        vals = map(str.strip, found.split('|'))
+        return ('row', tuple(vals), sum(map(len, [s, found, s2])))
 
-    def scan_identifier(self, chunk):
-        found = self._exec(r'\A([^\:\n]+)(\: *)([^\n\#]*)', chunk)
-        if found:
-            identifier, _, label = found
-            return ('identifier',
-                    (identifier.strip(), label.strip()),
-                    sum(map(len, found)))
+    @matcher(r'\A([^\:\n]+)(\: *)([^\n\#]*)')
+    def scan_identifier(self, found):
+        identifier, _, label = found
+        return ('identifier',
+                (identifier.strip(), label.strip()),
+                sum(map(len, found)))
 
-    def scan_step(self, chunk):
-        found = self._exec(r'\A(\s*)(Given|When|Then|And|But)( *)([^\n\#\:]+)', chunk)
-        if found:
-            s1, name, s2, text = found
-            return ('step', (name, text), sum(map(len, [s1, s2, name, text])))
+    @matcher(r'\A(\s*)(Given|When|Then|And|But)( *)([^\n\#\:]+)')
+    def scan_step(self, found):
+        s1, name, s2, text = found
+        return ('step', (name, text), sum(map(len, [s1, s2, name, text])))
 
-    def scan_text(self, chunk):
-        found = self._exec(r'\A([^\n\#]+)', chunk)
+    @matcher(r'\A([^\n\#]+)')
+    def scan_text(self, found):
         # Corner case? When there's a comment in the same line we have text we
         # need to strip the text
-        return found and ('text', found.strip(), len(found))
+        return ('text', found.strip(), len(found))
