@@ -2,19 +2,24 @@ import re
 from functools import wraps
 
 
-def matcher(pattern, flags=0):
+class matcher(object):
     """Decorator for creating new matchers for the lexer analyzer.
 
     This decorator compiles an RE out of the pattern (and flags) received and
     wrap the actual scan operation with a function that executes the compiled
     RE, calling the actual function if the matching is successful.
     """
-
-    def assigner(func):
+    def __init__(self, pattern, flags=0):
         # Yay, this line will get called only once per pattern since the
         # matcher (and thus the assigner functions) are called when python is
         # still reading the decorated methods from the `Lexer` class.
-        regex = re.compile(pattern, flags=flags)
+        self.regex = re.compile(pattern, flags=flags)
+
+    def __call__(self, func):
+
+        # Saving the local attribute inside of the closure's namespace so we
+        # can use it inside of the decorator
+        regex = self.regex
 
         @wraps(func)
         def decorator(self, chunk):
@@ -25,8 +30,6 @@ def matcher(pattern, flags=0):
                 return func(self, found[0])
 
         return decorator
-
-    return assigner
 
 
 class Lexer(object):
