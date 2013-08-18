@@ -3,11 +3,7 @@ import re
 
 class Lexer(object):
     def __init__(self, lang):
-        self.current_indent_size = 0
-        self.indent_stack = []
-
-        self.free_indentation_block = False
-        self.free_indentation_block_size = 0
+        pass
 
     def scan(self, data):
         i = 0
@@ -36,7 +32,7 @@ class Lexer(object):
                     # The `scan_indent` handler might not return tokens, but we
                     # still need to skip the newline character found inside of
                     # the same indent level
-                    if kind:    # noqa
+                    if kind:
                         tokens.append((kind, token))
 
                     i += size
