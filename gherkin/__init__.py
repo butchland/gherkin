@@ -10,7 +10,8 @@ import re
     TOKEN_COMMENT,
     TOKEN_META_LABEL,
     TOKEN_META_VALUE,
-) = range(6)
+    TOKEN_LABEL,
+) = range(7)
 
 
 class matcher(object):
@@ -66,6 +67,10 @@ class Lexer(object):
             (token, self.input_string[self.start:self.position]))
         self.start = self.position
 
+    def emit_s(self, token):
+        if self.position > self.start:
+            self.emit(token)
+
     def ignore(self):
         self.start = self.position
 
@@ -85,21 +90,35 @@ class Lexer(object):
         return self.lex_comment
 
     def lex_text(self):
+        while self.accept([' ']):
+            self.ignore()
         while True:
             cursor = self.next_()
             if cursor is None: # EOF
                 break
+
+            elif cursor == ':':
+                self.backup()
+                self.emit_s(TOKEN_LABEL)
+                self.next_()
+                self.ignore()
+                return self.lex_text
+
+            elif cursor == '\n':
+                self.backup()
+                self.emit_s(TOKEN_TEXT)
+                self.next_()
+                self.ignore()
+                return self.lex_text
+
             elif cursor == '#':
                 self.backup()
-                if self.position > self.start:
-                    self.emit(TOKEN_TEXT)
-
+                self.emit_s(TOKEN_TEXT)
                 self.next_()
                 self.emit(TOKEN_HASH)
                 return self.lex_comment
 
-        if self.position > self.start:
-            self.emit(TOKEN_TEXT)
+        self.emit_s(TOKEN_TEXT)
         self.emit(TOKEN_EOF)
         return None
 
@@ -116,10 +135,11 @@ class Lexer(object):
             elif cursor == ':':
                 self.backup()
                 self.emit(TOKEN_META_LABEL)
-                self.next_(); self.ignore()
+                self.next_()
+                self.ignore()
                 return self.lex_comment_metadata_value
-        if self.position > self.start:
-            self.emit(TOKEN_COMMENT)
+
+        self.emit_s(TOKEN_COMMENT)
         return self.lex_text
 
     def lex_comment_metadata_value(self):
@@ -131,12 +151,10 @@ class Lexer(object):
                 break
             if cursor in (' ', '\n'):
                 self.backup()
-                if self.position > self.start:
-                    self.emit(TOKEN_META_VALUE)
+                self.emit_s(TOKEN_META_VALUE)
                 return self.lex_comment
 
-        if self.position > self.start:
-            self.emit(TOKEN_META_VALUE)
+        self.emit_s(TOKEN_META_VALUE)
         return self.lex_comment
 
     def scan(self, data):

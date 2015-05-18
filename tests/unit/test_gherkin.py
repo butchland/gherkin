@@ -55,7 +55,7 @@ def test_lex_hash_with_text():
     new_state.should.equal(lexer.lex_comment)
 
     lexer.tokens.should.equal([
-        (gherkin.TOKEN_TEXT, ' some text '),
+        (gherkin.TOKEN_TEXT, 'some text '),
         (gherkin.TOKEN_HASH, '#'),
     ])
 
@@ -104,7 +104,8 @@ def test_lex_comment_full():
     lexer = gherkin.Lexer('en', 'some text # metadata-field: blah-value\ntext')
 
     state = lexer.lex_text
-    while state: state = state()
+    while state:
+        state = state()
 
     lexer.tokens.should.equal([
         (gherkin.TOKEN_TEXT, 'some text '),
@@ -114,6 +115,86 @@ def test_lex_comment_full():
         (gherkin.TOKEN_TEXT, 'text'),
         (gherkin.TOKEN_EOF, '')
     ])
+
+
+def test_lex_text_with_label():
+
+    lexer = gherkin.Lexer(
+        'en', 'Feature: A cool feature\n  some more text\n  even more text')
+
+    state = lexer.lex_text
+    while state:
+        state = state()
+
+    lexer.tokens.should.equal([
+        (gherkin.TOKEN_LABEL, 'Feature'),
+        (gherkin.TOKEN_TEXT, 'A cool feature'),
+        (gherkin.TOKEN_TEXT, 'some more text'),
+        (gherkin.TOKEN_TEXT, 'even more text'),
+        (gherkin.TOKEN_EOF, '')
+    ])
+
+
+def test_lex_text_with_labels():
+
+    lexer = gherkin.Lexer('en', '''\
+Feature: Some descriptive text
+  In order to parse a Gherkin file
+  As a parser
+  I want to be able to parse scenarios
+
+  Even more text
+
+  Scenario: The user wants to describe a feature
+''')
+
+    state = lexer.lex_text
+    while state: state = state()
+
+    lexer.tokens.should.equal([
+        (gherkin.TOKEN_LABEL, 'Feature'),
+        (gherkin.TOKEN_TEXT, 'Some descriptive text'),
+        (gherkin.TOKEN_TEXT, 'In order to parse a Gherkin file'),
+        (gherkin.TOKEN_TEXT, 'As a parser'),
+        (gherkin.TOKEN_TEXT, 'I want to be able to parse scenarios'),
+        (gherkin.TOKEN_TEXT, 'Even more text'),
+        (gherkin.TOKEN_LABEL, 'Scenario'),
+        (gherkin.TOKEN_TEXT, 'The user wants to describe a feature'),
+        (gherkin.TOKEN_EOF, '')
+    ])
+
+
+def test_lex_text_with_labels():
+
+    lexer = gherkin.Lexer('en', '''\
+Feature: Feature title
+  feature description
+  Background: Some background
+    about the problem
+  Scenario: Scenario title
+    Given first step
+     When second step
+     Then third step
+''')
+
+    state = lexer.lex_text
+    while state: state = state()
+
+    lexer.tokens.should.equal([
+        (gherkin.TOKEN_LABEL, 'Feature'),
+        (gherkin.TOKEN_TEXT, 'Feature title'),
+        (gherkin.TOKEN_TEXT, 'feature description'),
+        (gherkin.TOKEN_LABEL, 'Background'),
+        (gherkin.TOKEN_TEXT, 'Some background'),
+        (gherkin.TOKEN_TEXT, 'about the problem'),
+        (gherkin.TOKEN_LABEL, 'Scenario'),
+        (gherkin.TOKEN_TEXT, 'Scenario title'),
+        (gherkin.TOKEN_TEXT, 'Given first step'),
+        (gherkin.TOKEN_TEXT, 'When second step'),
+        (gherkin.TOKEN_TEXT, 'Then third step'),
+        (gherkin.TOKEN_EOF, '')
+    ])
+
 
 def test_read_metadata():
     "It should be possible to read metadata from feature files"
