@@ -3,6 +3,16 @@ from functools import wraps
 import re
 
 
+(
+    TOKEN_EOF,
+    TOKEN_TEXT,
+    TOKEN_HASH,
+    TOKEN_COMMENT,
+    TOKEN_META_LABEL,
+    TOKEN_META_VALUE,
+) = range(6)
+
+
 class matcher(object):
     """Decorator for creating new matchers for the lexer analyzer.
 
@@ -35,8 +45,99 @@ class matcher(object):
 
 class Lexer(object):
 
-    def __init__(self, lang):
-        pass
+    def __init__(self, language, input_string=None):
+        self.input_string = input_string
+        self.start = 0
+        self.position = 0
+        self.width = 0
+        self.tokens = []
+
+    def next_(self):
+        if self.position >= len(self.input_string):
+            self.width = 0
+            return None # EOF
+        next_char = self.input_string[self.position]
+        self.width = len(next_char)
+        self.position += self.width
+        return next_char
+
+    def emit(self, token):
+        self.tokens.append(
+            (token, self.input_string[self.start:self.position]))
+        self.start = self.position
+
+    def ignore(self):
+        self.start = self.position
+
+    def backup(self):
+        self.position -= self.width
+
+    def accept(self, valid):
+        if self.next_() in valid:
+            return True
+        self.backup()
+        return False
+
+    ## Breaking the lexer down
+    def lex_hash(self):
+        self.position += 1
+        self.emit(TOKEN_HASH)
+        return self.lex_comment
+
+    def lex_text(self):
+        while True:
+            cursor = self.next_()
+            if cursor is None: # EOF
+                break
+            elif cursor == '#':
+                self.backup()
+                if self.position > self.start:
+                    self.emit(TOKEN_TEXT)
+
+                self.next_()
+                self.emit(TOKEN_HASH)
+                return self.lex_comment
+
+        if self.position > self.start:
+            self.emit(TOKEN_TEXT)
+        self.emit(TOKEN_EOF)
+        return None
+
+    def lex_comment(self):
+        while self.accept([' ']):
+            self.ignore()
+        while True:
+            cursor = self.next_()
+            if cursor is None: # EOF
+                break
+            elif cursor == '\n':
+                self.ignore()
+                return self.lex_text
+            elif cursor == ':':
+                self.backup()
+                self.emit(TOKEN_META_LABEL)
+                self.next_(); self.ignore()
+                return self.lex_comment_metadata_value
+        if self.position > self.start:
+            self.emit(TOKEN_COMMENT)
+        return self.lex_text
+
+    def lex_comment_metadata_value(self):
+        while self.accept([' ']):
+            self.ignore()
+        while True:
+            cursor = self.next_()
+            if cursor is None: # EOF
+                break
+            if cursor in (' ', '\n'):
+                self.backup()
+                if self.position > self.start:
+                    self.emit(TOKEN_META_VALUE)
+                return self.lex_comment
+
+        if self.position > self.start:
+            self.emit(TOKEN_META_VALUE)
+        return self.lex_comment
 
     def scan(self, data):
         i = 0

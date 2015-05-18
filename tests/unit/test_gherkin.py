@@ -1,6 +1,119 @@
-from __future__ import unicode_literals
+import gherkin
 from gherkin import Lexer
 
+
+def test_lex_test_eof():
+    "lex_text() Should be able to find EOF"
+
+    # Given a lexer that takes '' as the input string
+    lexer = gherkin.Lexer('en', '')
+
+    # When we try to lex any text from ''
+    new_state = lexer.lex_text()
+
+    # Then we see we've got to EOF and that new state is nil
+    lexer.tokens.should.equal([(gherkin.TOKEN_EOF, '')])
+    new_state.should.be.none
+
+
+def test_lex_text():
+    "lex_text() Should be able to find text before EOF"
+
+    # Given a lexer that takes some text as input string
+    lexer = gherkin.Lexer('en', 'some text')
+
+    # When we lex it
+    new_state = lexer.lex_text()
+
+    # Then we see we found both the text and the EOF token
+    lexer.tokens.should.equal([
+        (gherkin.TOKEN_TEXT, 'some text'),
+        (gherkin.TOKEN_EOF, '')
+    ])
+
+    # And the new state is nil
+    new_state.should.be.none
+
+
+def test_lex_hash():
+
+    lexer = gherkin.Lexer('en', '#')
+
+    new_state = lexer.lex_hash()
+
+    new_state.should.equal(lexer.lex_comment)
+
+    lexer.tokens.should.equal([(gherkin.TOKEN_HASH, '#')])
+
+
+def test_lex_hash_with_text():
+
+    lexer = gherkin.Lexer('en', ' some text # random comment')
+
+    new_state = lexer.lex_text()
+
+    new_state.should.equal(lexer.lex_comment)
+
+    lexer.tokens.should.equal([
+        (gherkin.TOKEN_TEXT, ' some text '),
+        (gherkin.TOKEN_HASH, '#'),
+    ])
+
+
+def test_lex_comment():
+
+    lexer = gherkin.Lexer('en', '   random comment')
+
+    new_state = lexer.lex_comment()
+
+    lexer.tokens.should.equal([
+        (gherkin.TOKEN_COMMENT, 'random comment'),
+    ])
+
+    new_state.should.equal(lexer.lex_text)
+
+
+def test_lex_comment_meta_label():
+
+    lexer = gherkin.Lexer('en', '     metadata: test')
+
+    new_state = lexer.lex_comment()
+
+    lexer.tokens.should.equal([
+        (gherkin.TOKEN_META_LABEL, 'metadata'),
+    ])
+
+    new_state.should.equal(lexer.lex_comment_metadata_value)
+
+
+def test_lex_comment_meta_value():
+
+    lexer = gherkin.Lexer('en', ' test')
+
+    new_state = lexer.lex_comment_metadata_value()
+
+    lexer.tokens.should.equal([
+        (gherkin.TOKEN_META_VALUE, 'test'),
+    ])
+
+    new_state.should.equal(lexer.lex_comment)
+
+
+def test_lex_comment_full():
+
+    lexer = gherkin.Lexer('en', 'some text # metadata-field: blah-value\ntext')
+
+    state = lexer.lex_text
+    while state: state = state()
+
+    lexer.tokens.should.equal([
+        (gherkin.TOKEN_TEXT, 'some text '),
+        (gherkin.TOKEN_HASH, '#'),
+        (gherkin.TOKEN_META_LABEL, 'metadata-field'),
+        (gherkin.TOKEN_META_VALUE, 'blah-value'),
+        (gherkin.TOKEN_TEXT, 'text'),
+        (gherkin.TOKEN_EOF, '')
+    ])
 
 def test_read_metadata():
     "It should be possible to read metadata from feature files"
