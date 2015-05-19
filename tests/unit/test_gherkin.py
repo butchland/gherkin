@@ -1,3 +1,5 @@
+# -*- coding: utf-8; -*-
+
 import gherkin
 from gherkin import Lexer
 
@@ -6,7 +8,7 @@ def test_lex_test_eof():
     "lex_text() Should be able to find EOF"
 
     # Given a lexer that takes '' as the input string
-    lexer = gherkin.Lexer('en', '')
+    lexer = gherkin.Lexer('')
 
     # When we try to lex any text from ''
     new_state = lexer.lex_text()
@@ -20,7 +22,7 @@ def test_lex_text():
     "lex_text() Should be able to find text before EOF"
 
     # Given a lexer that takes some text as input string
-    lexer = gherkin.Lexer('en', 'some text')
+    lexer = gherkin.Lexer('some text')
 
     # When we lex it
     new_state = lexer.lex_text()
@@ -37,7 +39,7 @@ def test_lex_text():
 
 def test_lex_hash():
 
-    lexer = gherkin.Lexer('en', '#')
+    lexer = gherkin.Lexer('#')
 
     new_state = lexer.lex_hash()
 
@@ -48,7 +50,7 @@ def test_lex_hash():
 
 def test_lex_hash_with_text():
 
-    lexer = gherkin.Lexer('en', ' some text # random comment')
+    lexer = gherkin.Lexer(' some text # random comment')
 
     new_state = lexer.lex_text()
 
@@ -62,7 +64,7 @@ def test_lex_hash_with_text():
 
 def test_lex_comment():
 
-    lexer = gherkin.Lexer('en', '   random comment')
+    lexer = gherkin.Lexer('   random comment')
 
     new_state = lexer.lex_comment()
 
@@ -75,7 +77,7 @@ def test_lex_comment():
 
 def test_lex_comment_meta_label():
 
-    lexer = gherkin.Lexer('en', '     metadata: test')
+    lexer = gherkin.Lexer('     metadata: test')
 
     new_state = lexer.lex_comment()
 
@@ -88,7 +90,7 @@ def test_lex_comment_meta_label():
 
 def test_lex_comment_meta_value():
 
-    lexer = gherkin.Lexer('en', ' test')
+    lexer = gherkin.Lexer(' test')
 
     new_state = lexer.lex_comment_metadata_value()
 
@@ -101,7 +103,7 @@ def test_lex_comment_meta_value():
 
 def test_lex_comment_full():
 
-    lexer = gherkin.Lexer('en', 'some text # metadata-field: blah-value\ntext')
+    lexer = gherkin.Lexer('some text # metadata-field: blah-value\ntext')
 
     state = lexer.lex_text
     while state:
@@ -120,7 +122,7 @@ def test_lex_comment_full():
 def test_lex_text_with_label():
 
     lexer = gherkin.Lexer(
-        'en', 'Feature: A cool feature\n  some more text\n  even more text')
+        'Feature: A cool feature\n  some more text\n  even more text')
 
     state = lexer.lex_text
     while state:
@@ -137,7 +139,7 @@ def test_lex_text_with_label():
 
 def test_lex_text_with_labels():
 
-    lexer = gherkin.Lexer('en', '''\
+    lexer = gherkin.Lexer('''\
 Feature: Some descriptive text
   In order to parse a Gherkin file
   As a parser
@@ -164,9 +166,9 @@ Feature: Some descriptive text
     ])
 
 
-def test_lex_text_with_labels():
+def test_lex_text_with_steps():
 
-    lexer = gherkin.Lexer('en', '''\
+    lexer = gherkin.Lexer('''\
 Feature: Feature title
   feature description
   Background: Some background
@@ -192,6 +194,48 @@ Feature: Feature title
         (gherkin.TOKEN_TEXT, 'Given first step'),
         (gherkin.TOKEN_TEXT, 'When second step'),
         (gherkin.TOKEN_TEXT, 'Then third step'),
+        (gherkin.TOKEN_EOF, '')
+    ])
+
+
+def test_lex_load_languages():
+
+    # Given the following lexer instance loaded with another language
+    lexer = gherkin.Lexer('''# language: pt-br
+
+    Funcionalidade: Interpretador para gherkin
+      Para escrever testes de aceitação
+      Como um programador
+      Preciso de uma ferramenta de BDD
+    Contexto:
+      Dado que a variavel "X" contém o número 2
+    Cenário: Lanche
+      Dada uma maçã
+      Quando mordida
+      Então a fome passa
+    ''')
+
+    # When the state is parsed
+    state = lexer.lex_text
+    while state: state = state()
+
+    # Then the following list of tokens is generated
+    lexer.tokens.should.equal([
+        (gherkin.TOKEN_HASH, '#'),
+        (gherkin.TOKEN_META_LABEL, 'language'),
+        (gherkin.TOKEN_META_VALUE, 'pt-br'),
+        (gherkin.TOKEN_LABEL, 'Funcionalidade'),
+        (gherkin.TOKEN_TEXT, 'Interpretador para gherkin'),
+        (gherkin.TOKEN_TEXT, 'Para escrever testes de aceitação'),
+        (gherkin.TOKEN_TEXT, 'Como um programador'),
+        (gherkin.TOKEN_TEXT, 'Preciso de uma ferramenta de BDD'),
+        (gherkin.TOKEN_LABEL, 'Contexto'),
+        (gherkin.TOKEN_TEXT, 'Dado que a variavel "X" contém o número 2'),
+        (gherkin.TOKEN_LABEL, 'Cenário'),
+        (gherkin.TOKEN_TEXT, 'Lanche'),
+        (gherkin.TOKEN_TEXT, 'Dada uma maçã'),
+        (gherkin.TOKEN_TEXT, 'Quando mordida'),
+        (gherkin.TOKEN_TEXT, 'Então a fome passa'),
         (gherkin.TOKEN_EOF, '')
     ])
 
@@ -223,7 +267,7 @@ def test_lexer_single_feature():
     "The lexer should be able to emit tokens for the Feature identifier"
 
     # Given an instance of a localized lexes
-    lexer = Lexer('en')
+    lexer = Lexer('')
 
     # When I scan a feature description
     nodes = lexer.scan('''Feature: My Feature
@@ -269,7 +313,7 @@ def test_feature_with_background():
     "It should be possible to declare a background for a feature"
 
     # Given that I have a tasty instance of a delicious localized lexer
-    lexer = Lexer('en')
+    lexer = Lexer('')
 
     # When I scan a feature with a background
     nodes = lexer.scan('''\
@@ -301,7 +345,7 @@ def test_random_spaces_in_syntax():
     "It should be possible to use any syntax when declaring steps"
 
     # Given that I have a tasty instance of a delicious localized lexer
-    lexer = Lexer('en')
+    lexer = Lexer('')
 
     # When I scan the description of a feature with a scenario with a list of
     # weirdly indented steps
@@ -345,7 +389,7 @@ def test_tables():
     "It should be possible to declare tables in steps"
 
     # Given that I have a tasty instance of a delicious localized lexer
-    lexer = Lexer('en')
+    lexer = Lexer('')
 
     # When I scan the description of a feature with a scenario outlines
     nodes = lexer.scan('''\
@@ -421,7 +465,7 @@ def test_tags():
     "It should be possible to read tags"
 
     # Given that I have a tasty instance of a delicious localized lexer
-    lexer = Lexer('en')
+    lexer = Lexer('')
 
     # When I scan the description of a feature with some tags
     nodes = lexer.scan('''\
@@ -459,7 +503,7 @@ def test_multiline_strings():
     "It should be possible to declare multiline strings in steps"
 
     # Given that I have a tasty instance of a delicious localized lexer
-    lexer = Lexer('en')
+    lexer = Lexer('')
 
     # When I scan the description of a feature with some multiline strings
     nodes = lexer.scan('''\

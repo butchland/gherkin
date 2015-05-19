@@ -1,3 +1,5 @@
+# -*- coding: utf-8; -*-
+
 from __future__ import unicode_literals
 from functools import wraps
 import re
@@ -46,25 +48,30 @@ class matcher(object):
 
 class Lexer(object):
 
-    def __init__(self, language, input_string=None):
-        self.input_string = input_string
+    def __init__(self, stream):
+
+        # settings
+        self.language = 'en'
+        self.encoding = 'utf-8'
+
+        # control the cursor
+        self.stream = stream
         self.start = 0
         self.position = 0
         self.width = 0
         self.tokens = []
 
     def next_(self):
-        if self.position >= len(self.input_string):
+        if self.position >= len(self.stream):
             self.width = 0
             return None # EOF
-        next_char = self.input_string[self.position]
+        next_char = self.stream[self.position]
         self.width = len(next_char)
         self.position += self.width
         return next_char
 
     def emit(self, token):
-        self.tokens.append(
-            (token, self.input_string[self.start:self.position]))
+        self.tokens.append((token, self.stream[self.start:self.position]))
         self.start = self.position
 
     def emit_s(self, token):
