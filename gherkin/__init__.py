@@ -61,6 +61,11 @@ class Lexer(BaseParser):
         if self.position > self.start:
             self.emit(token)
 
+    def run(self):
+        state = self.lex_text
+        while state:
+            state = state()
+
     def lex_text(self):
         while self.accept([' ']):
             self.ignore()
@@ -68,27 +73,23 @@ class Lexer(BaseParser):
             cursor = self.next_()
             if cursor is None: # EOF
                 break
-
             elif cursor == ':':
                 self.backup()
                 self.emit_s(TOKEN_LABEL)
                 self.next_()
                 self.ignore()
                 return self.lex_text
-
+            elif cursor == '#':
+                self.backup()
+                self.emit_s(TOKEN_TEXT)
+                self.next_()
+                return self.lex_comment
             elif cursor == '\n':
                 self.backup()
                 self.emit_s(TOKEN_TEXT)
                 self.next_()
                 self.emit_s(TOKEN_NEWLINE)
                 return self.lex_text
-
-            elif cursor == '#':
-                self.backup()
-                self.emit_s(TOKEN_TEXT)
-                self.next_()
-                return self.lex_comment
-
         self.emit_s(TOKEN_TEXT)
         self.emit(TOKEN_EOF)
         return None
@@ -109,7 +110,6 @@ class Lexer(BaseParser):
                 self.next_()
                 self.ignore()
                 return self.lex_comment_metadata_value
-
         self.emit_s(TOKEN_COMMENT)
         return self.lex_text
 
@@ -120,13 +120,12 @@ class Lexer(BaseParser):
             cursor = self.next_()
             if cursor is None: # EOF
                 break
-            if cursor in (' ', '\n'):
+            elif cursor == '\n':
                 self.backup()
                 self.emit_s(TOKEN_META_VALUE)
-                return self.lex_comment
-
+                return self.lex_text
         self.emit_s(TOKEN_META_VALUE)
-        return self.lex_comment
+        return self.lex_text
 
 
 class Parser(BaseParser):

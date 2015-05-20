@@ -38,6 +38,7 @@ def test_lex_text():
 
 
 def test_lex_hash_with_text():
+    "lex_text() Should stop lexing at # (we found a comment!)"
 
     # Given a lexer with some text and some comment
     lexer = gherkin.Lexer(' some text # random comment')
@@ -55,52 +56,72 @@ def test_lex_hash_with_text():
 
 
 def test_lex_comment():
+    "lex_comment() Should stop lexing at \n"
 
+    # Given a lexer loaded with some comments
     lexer = gherkin.Lexer('   random comment')
 
+    # When We lex the input text
     new_state = lexer.lex_comment()
 
+    # Then we see the comment above was captured
     lexer.tokens.should.equal([
         (gherkin.TOKEN_COMMENT, 'random comment'),
     ])
 
+    # And that new state is lex_text()
     new_state.should.equal(lexer.lex_text)
 
 
 def test_lex_comment_meta_label():
+    "lex_comment() Should stop lexing at : (we found a label)"
 
+    # Given a lexer loaded with a comment that contains a label
     lexer = gherkin.Lexer('     metadata: test')
 
+    # When we lex the comment
     new_state = lexer.lex_comment()
 
+    # Then we see that a label was found
     lexer.tokens.should.equal([
         (gherkin.TOKEN_META_LABEL, 'metadata'),
     ])
 
+    # And that new state is going to read the value of the variable we
+    # just found
     new_state.should.equal(lexer.lex_comment_metadata_value)
 
 
-def test_lex_comment_meta_value():
+def test_lex_comment_metadata_value():
+    "lex_comment_metadata_value() Should stop lexing at "
 
-    lexer = gherkin.Lexer(' test')
+    # Given a lexer loaded with the value of a label and a new line
+    # with more text
+    lexer = gherkin.Lexer(' test value\nblah')
 
+    # When we lex the input string
     new_state = lexer.lex_comment_metadata_value()
 
+    # Then we see that only the value
     lexer.tokens.should.equal([
-        (gherkin.TOKEN_META_VALUE, 'test'),
+        (gherkin.TOKEN_META_VALUE, 'test value'),
     ])
 
-    new_state.should.equal(lexer.lex_comment)
+    # And we also see that the next
+    new_state.should.equal(lexer.lex_text)
 
 
 def test_lex_comment_full():
+    "Lexer.run() Should be able to process metadata in comments"
 
+    # Given a lexer loaded with comments containing a metadata field
     lexer = gherkin.Lexer('some text # metadata-field: blah-value\ntext')
 
-    state = lexer.lex_text
-    while state:
-        state = state()
+    # When I run the lexer
+    lexer.run()
 
+    # Then I see the tokens collected match some text, a field, more
+    # text and EOF
     lexer.tokens.should.equal([
         (gherkin.TOKEN_TEXT, 'some text '),
         (gherkin.TOKEN_META_LABEL, 'metadata-field'),
@@ -112,14 +133,17 @@ def test_lex_comment_full():
 
 
 def test_lex_text_with_label():
+    "Lexer.run() Should be able to parse a label with some text"
 
+    # Given a lexer loaded with a feature
     lexer = gherkin.Lexer(
         'Feature: A cool feature\n  some more text\n  even more text')
 
-    state = lexer.lex_text
-    while state:
-        state = state()
+    # When we run the lexer
+    lexer.run()
 
+    # Then we see the token list matches the label, text, text EOF
+    # sequence
     lexer.tokens.should.equal([
         (gherkin.TOKEN_LABEL, 'Feature'),
         (gherkin.TOKEN_TEXT, 'A cool feature'),
@@ -132,8 +156,11 @@ def test_lex_text_with_label():
 
 
 def test_lex_text_with_labels():
+    "Lexer.run() Should be able to tokenize a feature with a scenario"
 
-    lexer = gherkin.Lexer('''\
+    # Given a lexer with a more complete feature+scenario
+    lexer = gherkin.Lexer('''
+
 Feature: Some descriptive text
   In order to parse a Gherkin file
   As a parser
@@ -144,10 +171,13 @@ Feature: Some descriptive text
   Scenario: The user wants to describe a feature
 ''')
 
-    state = lexer.lex_text
-    while state: state = state()
+    # When we run the lexer
+    lexer.run()
 
+    # Then we see it was broken down into the right list of tokens
     lexer.tokens.should.equal([
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
         (gherkin.TOKEN_LABEL, 'Feature'),
         (gherkin.TOKEN_TEXT, 'Some descriptive text'),
         (gherkin.TOKEN_NEWLINE, '\n'),
@@ -169,7 +199,9 @@ Feature: Some descriptive text
 
 
 def test_lex_text_with_steps():
+    "Lexer.run() Should be able to tokenize steps"
 
+    # Given a lexer loaded with feature+background+scenario+steps
     lexer = gherkin.Lexer('''\
 Feature: Feature title
   feature description
@@ -181,9 +213,11 @@ Feature: Feature title
      Then third step
 ''')
 
-    state = lexer.lex_text
-    while state: state = state()
+    # When we run the lexer
+    lexer.run()
 
+    # Then we see that everything, including the steps was properly
+    # tokenized
     lexer.tokens.should.equal([
         (gherkin.TOKEN_LABEL, 'Feature'),
         (gherkin.TOKEN_TEXT, 'Feature title'),
@@ -209,6 +243,7 @@ Feature: Feature title
 
 
 def test_lex_load_languages():
+    "Lexer.run() Should be able to parse different languages"
 
     # Given the following lexer instance loaded with another language
     lexer = gherkin.Lexer('''# language: pt-br
@@ -225,9 +260,8 @@ def test_lex_load_languages():
       Então a fome passa
     ''')
 
-    # When the state is parsed
-    state = lexer.lex_text
-    while state: state = state()
+    # When we run the lexer
+    lexer.run()
 
     # Then the following list of tokens is generated
     lexer.tokens.should.equal([
@@ -259,7 +293,6 @@ def test_lex_load_languages():
         (gherkin.TOKEN_NEWLINE, '\n'),
         (gherkin.TOKEN_EOF, '')
     ])
-
 
 
 def test_parse_metadata_syntax_error():
