@@ -212,21 +212,25 @@ class Parser(BaseParser):
             if item is None:
                 break  # EOF
             token, value = item
-            if token != TOKEN_LABEL or not self.match_label('scenario', value):
-                self.backup()
+            if token == TOKEN_EOF:
                 break
+            if not self.match_label('scenario', value):
+                raise SyntaxError(
+                    ('`{}\' should not be declared here, '
+                     'Scenario expected').format(value))
             scenarios.append(Ast.Scenario(
                 title=self.parse_title(),
                 steps=self.parse_steps()))
         return scenarios
 
     def parse_feature(self):
+        while self.accept([(TOKEN_NEWLINE, '\n')]):
+            self.ignore()
         token, label = self.next_()
-        assert token == TOKEN_LABEL
         if not self.match_label('feature', label):
             raise SyntaxError(
-                'Looking for a `feature\' identifier, found a {} though',
-                self.label_type(label))
+                'Feature expected in the beginning of the file, '
+                'found `{}\' though.'.format(label))
         return Ast.Feature(
             title=self.parse_title(),
             description=self.parse_description(),

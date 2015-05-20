@@ -56,7 +56,7 @@ def test_lex_hash_with_text():
 
 
 def test_lex_comment():
-    "lex_comment() Should stop lexing at \n"
+    "lex_comment() Should stop lexing at \\n"
 
     # Given a lexer loaded with some comments
     lexer = gherkin.Lexer('   random comment')
@@ -93,7 +93,7 @@ def test_lex_comment_meta_label():
 
 
 def test_lex_comment_metadata_value():
-    "lex_comment_metadata_value() Should stop lexing at "
+    "lex_comment_metadata_value() Should stop lexing at \n"
 
     # Given a lexer loaded with the value of a label and a new line
     # with more text
@@ -371,6 +371,57 @@ def teste_parse_scenarios():
         title=Ast.Text('Scenario title'),
         steps=[Ast.Step(Ast.Text('Given first step'))],
     )])
+
+
+def test_parse_not_starting_with_feature():
+
+    parser = gherkin.Parser(gherkin.Lexer('''
+Scenario: Scenario title
+  Given first step
+   When second step
+   Then third step
+    ''').run())
+
+    parser.parse_feature.when.called.should.throw(
+        SyntaxError,
+        "Feature expected in the beginning of the file, "
+        "found `Scenario' though.")
+
+
+def test_parse_feature_two_backgrounds():
+
+    parser = gherkin.Parser(gherkin.Lexer('''
+Feature: Feature title
+  feature description
+  Background: Some background
+    about the problem
+  Background: Some other background
+    will raise an exception
+  Scenario: Scenario title
+    Given first step
+     When second step
+     Then third step
+    ''').run())
+
+    parser.parse_feature.when.called.should.throw(
+        SyntaxError, "`Background' should not be declared here, Scenario expected")
+
+
+def test_parse_feature_background_wrong_place():
+
+    parser = gherkin.Parser(gherkin.Lexer('''
+Feature: Feature title
+  feature description
+  Scenario: Scenario title
+    Given first step
+     When second step
+     Then third step
+  Background: Some background
+    about the problem
+    ''').run())
+
+    parser.parse_feature.when.called.should.throw(
+        SyntaxError, "`Background' should not be declared here, Scenario expected")
 
 
 def test_parse_feature():
