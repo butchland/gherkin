@@ -1,19 +1,314 @@
 # -*- coding: utf-8; -*-
 
-from __future__ import unicode_literals
 from functools import wraps
 import re
 
 
 (
     TOKEN_EOF,
+    TOKEN_NEWLINE,
     TOKEN_TEXT,
-    TOKEN_HASH,
     TOKEN_COMMENT,
     TOKEN_META_LABEL,
     TOKEN_META_VALUE,
     TOKEN_LABEL,
 ) = range(7)
+
+
+class BaseParser(object):
+
+    def __init__(self, stream):
+        self.stream = stream
+        self.start = 0
+        self.position = 0
+        self.width = 0
+
+    def next_(self):
+        if self.position >= len(self.stream):
+            self.width = 0
+            return None # EOF
+        next_item = self.stream[self.position]
+        self.width = 1 # len(next_item)
+        self.position += self.width
+        return next_item
+
+    def ignore(self):
+        self.start = self.position
+
+    def backup(self):
+        self.position -= self.width
+
+    def accept(self, valid):
+        if self.next_() in valid:
+            return True
+        self.backup()
+        return False
+
+
+class Lexer(BaseParser):
+
+    def __init__(self, stream):
+        super(Lexer, self).__init__(stream)
+        self.language = 'en'
+        self.encoding = 'utf-8'
+        self.tokens = []
+
+    def emit(self, token):
+        self.tokens.append((token, self.stream[self.start:self.position]))
+        self.start = self.position
+
+    def emit_s(self, token):
+        if self.position > self.start:
+            self.emit(token)
+
+    def lex_text(self):
+        while self.accept([' ']):
+            self.ignore()
+        while True:
+            cursor = self.next_()
+            if cursor is None: # EOF
+                break
+
+            elif cursor == ':':
+                self.backup()
+                self.emit_s(TOKEN_LABEL)
+                self.next_()
+                self.ignore()
+                return self.lex_text
+
+            elif cursor == '\n':
+                self.backup()
+                self.emit_s(TOKEN_TEXT)
+                self.next_()
+                self.emit_s(TOKEN_NEWLINE)
+                return self.lex_text
+
+            elif cursor == '#':
+                self.backup()
+                self.emit_s(TOKEN_TEXT)
+                self.next_()
+                return self.lex_comment
+
+        self.emit_s(TOKEN_TEXT)
+        self.emit(TOKEN_EOF)
+        return None
+
+    def lex_comment(self):
+        while self.accept([' ']):
+            self.ignore()
+        while True:
+            cursor = self.next_()
+            if cursor is None: # EOF
+                break
+            elif cursor == '\n':
+                self.emit_s(TOKEN_NEWLINE)
+                return self.lex_text
+            elif cursor == ':':
+                self.backup()
+                self.emit(TOKEN_META_LABEL)
+                self.next_()
+                self.ignore()
+                return self.lex_comment_metadata_value
+
+        self.emit_s(TOKEN_COMMENT)
+        return self.lex_text
+
+    def lex_comment_metadata_value(self):
+        while self.accept([' ']):
+            self.ignore()
+        while True:
+            cursor = self.next_()
+            if cursor is None: # EOF
+                break
+            if cursor in (' ', '\n'):
+                self.backup()
+                self.emit_s(TOKEN_META_VALUE)
+                return self.lex_comment
+
+        self.emit_s(TOKEN_META_VALUE)
+        return self.lex_comment
+
+
+class Parser(BaseParser):
+
+    def __init__(self, stream):
+        super(Parser, self).__init__(stream)
+        self.output = []
+        self.language = 'en'
+        self.languages = {
+            'en': {
+                'feature': re.compile('Feature'),
+                'background': re.compile('Background'),
+                'scenario': re.compile('Scenario'),
+            }
+        }
+
+    def match_label(self, type_, label):
+        return self.languages[self.language][type_].match(label)
+
+    def parse_title(self):
+        title = []
+        while True:
+            item = self.next_()
+            if item is None:
+                break  # EOF
+            token, value = item
+            if token == TOKEN_NEWLINE:
+                break
+            title.append(value)
+        return Ast.Text(' '.join(title))
+
+    def parse_description(self):
+        description = []
+        while True:
+            item = self.next_()
+            if item is None:
+                break  # EOF
+            token, value = item
+            if token == TOKEN_NEWLINE:
+                continue
+            elif token == TOKEN_TEXT:
+                description.append(value)
+            else:
+                self.backup()
+                break
+        return Ast.Text(' '.join(description))
+
+    def parse_background(self):
+        token, label = self.next_()
+        if not self.match_label('background', label):
+            self.backup()
+            return None
+        return Ast.Background(
+            self.parse_title(),
+            self.parse_description())
+
+    def parse_steps(self):
+        steps = []
+        while True:
+            item = self.next_()
+            if item is None:
+                break  # EOF
+            token, value = item
+            if token == TOKEN_TEXT:
+                steps.append(Ast.Step(Ast.Text(value)))
+            elif token == TOKEN_NEWLINE:
+                self.ignore()
+            else:
+                self.backup()
+                break
+        return steps
+
+    def parse_scenarios(self):
+        scenarios = []
+        while True:
+            item = self.next_()
+            if item is None:
+                break  # EOF
+            token, value = item
+            if token != TOKEN_LABEL or not self.match_label('scenario', value):
+                self.backup()
+                break
+            scenarios.append(Ast.Scenario(
+                title=self.parse_title(),
+                steps=self.parse_steps()))
+        return scenarios
+
+    def parse_feature(self):
+        token, label = self.next_()
+        assert token == TOKEN_LABEL
+        if not self.match_label('feature', label):
+            raise SyntaxError(
+                'Looking for a `feature\' identifier, found a {} though',
+                self.label_type(label))
+        return Ast.Feature(
+            title=self.parse_title(),
+            description=self.parse_description(),
+            background=self.parse_background(),
+            scenarios=self.parse_scenarios())
+
+    def parse_metadata(self):
+        item = self.next_()
+        if item is None: return
+        token, key = item
+        assert token == TOKEN_META_LABEL
+
+        item = self.next_()
+        if item is None: return
+        token, value = item
+        if token != TOKEN_META_VALUE:
+            raise SyntaxError(
+                'No value found for the meta-field `{}\''.format(key))
+        return Ast.Metadata(key, value)
+
+
+class Ast:
+    class Node(object):
+        def __eq__(self, other):
+            if other is not self and hasattr(other, '__dict__'):
+                return other.__dict__ == self.__dict__
+            return False
+
+    class Metadata(Node):
+        def __init__(self, key, value):
+            self.key = key
+            self.value = value
+
+        def __repr__(self):
+            return 'Metadata(key="{}", value="{}")'.format(self.key, self.value)
+
+    class Text(Node):
+        def __init__(self, text):
+            self.text = text
+
+        def __repr__(self):
+            return 'Text("{}")'.format(self.text)
+
+    class Background(Node):
+        def __init__(self, title, description=None):
+            self.title = title
+            self.description = description
+
+        def __repr__(self):
+            return 'Background(title={}, description={})'.format(
+                self.title, self.description)
+
+    class Feature(Node):
+        def __init__(self, title, description=None, background=None, scenarios=None):
+            self.title = title
+            self.description = description
+            self.background = background
+            self.scenarios = scenarios or []
+
+        def __repr__(self):
+            return 'Feature(title={}, description={}, background={}, scenarios={})'.format(
+                self.title, self.description, self.background, self.scenarios)
+
+    class Scenario(Node):
+        def __init__(self, title, description=None, steps=None):
+            self.title = title
+            self.description = description
+            self.steps = steps or []
+
+        def __repr__(self):
+            return 'Scenario(title={}, description={}, steps={})'.format(
+                self.title, self.description, self.steps)
+
+    class Step(Node):
+        def __init__(self, title):
+            self.title = title
+
+        def __repr__(self):
+            return 'Step(title={})'.format(self.title)
+
+
+
+
+
+
+
+
+
 
 
 class matcher(object):
@@ -46,123 +341,9 @@ class matcher(object):
         return decorator
 
 
-class Lexer(object):
+class OldLexer(object):
 
-    def __init__(self, stream):
-
-        # settings
-        self.language = 'en'
-        self.encoding = 'utf-8'
-
-        # control the cursor
-        self.stream = stream
-        self.start = 0
-        self.position = 0
-        self.width = 0
-        self.tokens = []
-
-    def next_(self):
-        if self.position >= len(self.stream):
-            self.width = 0
-            return None # EOF
-        next_char = self.stream[self.position]
-        self.width = len(next_char)
-        self.position += self.width
-        return next_char
-
-    def emit(self, token):
-        self.tokens.append((token, self.stream[self.start:self.position]))
-        self.start = self.position
-
-    def emit_s(self, token):
-        if self.position > self.start:
-            self.emit(token)
-
-    def ignore(self):
-        self.start = self.position
-
-    def backup(self):
-        self.position -= self.width
-
-    def accept(self, valid):
-        if self.next_() in valid:
-            return True
-        self.backup()
-        return False
-
-    ## Breaking the lexer down
-    def lex_hash(self):
-        self.position += 1
-        self.emit(TOKEN_HASH)
-        return self.lex_comment
-
-    def lex_text(self):
-        while self.accept([' ']):
-            self.ignore()
-        while True:
-            cursor = self.next_()
-            if cursor is None: # EOF
-                break
-
-            elif cursor == ':':
-                self.backup()
-                self.emit_s(TOKEN_LABEL)
-                self.next_()
-                self.ignore()
-                return self.lex_text
-
-            elif cursor == '\n':
-                self.backup()
-                self.emit_s(TOKEN_TEXT)
-                self.next_()
-                self.ignore()
-                return self.lex_text
-
-            elif cursor == '#':
-                self.backup()
-                self.emit_s(TOKEN_TEXT)
-                self.next_()
-                self.emit(TOKEN_HASH)
-                return self.lex_comment
-
-        self.emit_s(TOKEN_TEXT)
-        self.emit(TOKEN_EOF)
-        return None
-
-    def lex_comment(self):
-        while self.accept([' ']):
-            self.ignore()
-        while True:
-            cursor = self.next_()
-            if cursor is None: # EOF
-                break
-            elif cursor == '\n':
-                self.ignore()
-                return self.lex_text
-            elif cursor == ':':
-                self.backup()
-                self.emit(TOKEN_META_LABEL)
-                self.next_()
-                self.ignore()
-                return self.lex_comment_metadata_value
-
-        self.emit_s(TOKEN_COMMENT)
-        return self.lex_text
-
-    def lex_comment_metadata_value(self):
-        while self.accept([' ']):
-            self.ignore()
-        while True:
-            cursor = self.next_()
-            if cursor is None: # EOF
-                break
-            if cursor in (' ', '\n'):
-                self.backup()
-                self.emit_s(TOKEN_META_VALUE)
-                return self.lex_comment
-
-        self.emit_s(TOKEN_META_VALUE)
-        return self.lex_comment
+    def __init__(self, skip): pass
 
     def scan(self, data):
         i = 0
