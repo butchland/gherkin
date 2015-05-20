@@ -1,6 +1,7 @@
 # -*- coding: utf-8; -*-
 
 from functools import wraps
+from . import languages
 import re
 
 
@@ -13,6 +14,18 @@ import re
     TOKEN_META_VALUE,
     TOKEN_LABEL,
 ) = range(7)
+
+
+def compiled_languages():
+    compiled = {}
+    for language, values in languages.LANGUAGES.items():
+        compiled[language] = dict((kword, re.compile(regex))
+            for (kword, regex) in values.items())
+    return compiled
+
+
+## This should happen just once in the module life time
+LANGUAGES = compiled_languages()
 
 
 class BaseParser(object):
@@ -28,7 +41,7 @@ class BaseParser(object):
             self.width = 0
             return None # EOF
         next_item = self.stream[self.position]
-        self.width = 1 # len(next_item)
+        self.width = 1
         self.position += self.width
         return next_item
 
@@ -49,8 +62,6 @@ class Lexer(BaseParser):
 
     def __init__(self, stream):
         super(Lexer, self).__init__(stream)
-        self.language = 'en'
-        self.encoding = 'utf-8'
         self.tokens = []
 
     def emit(self, token):
@@ -134,14 +145,9 @@ class Parser(BaseParser):
     def __init__(self, stream):
         super(Parser, self).__init__(stream)
         self.output = []
+        self.encoding = 'utf-8'
         self.language = 'en'
-        self.languages = {
-            'en': {
-                'feature': re.compile('Feature'),
-                'background': re.compile('Background'),
-                'scenario': re.compile('Scenario'),
-            }
-        }
+        self.languages = LANGUAGES
 
     def match_label(self, type_, label):
         return self.languages[self.language][type_].match(label)
