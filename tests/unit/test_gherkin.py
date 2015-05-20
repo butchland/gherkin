@@ -118,11 +118,11 @@ def test_lex_comment_full():
     lexer = gherkin.Lexer('some text # metadata-field: blah-value\ntext')
 
     # When I run the lexer
-    lexer.run()
+    tokens = lexer.run()
 
     # Then I see the tokens collected match some text, a field, more
     # text and EOF
-    lexer.tokens.should.equal([
+    tokens.should.equal([
         (gherkin.TOKEN_TEXT, 'some text '),
         (gherkin.TOKEN_META_LABEL, 'metadata-field'),
         (gherkin.TOKEN_META_VALUE, 'blah-value'),
@@ -140,11 +140,11 @@ def test_lex_text_with_label():
         'Feature: A cool feature\n  some more text\n  even more text')
 
     # When we run the lexer
-    lexer.run()
+    tokens = lexer.run()
 
     # Then we see the token list matches the label, text, text EOF
     # sequence
-    lexer.tokens.should.equal([
+    tokens.should.equal([
         (gherkin.TOKEN_LABEL, 'Feature'),
         (gherkin.TOKEN_TEXT, 'A cool feature'),
         (gherkin.TOKEN_NEWLINE, '\n'),
@@ -172,10 +172,10 @@ Feature: Some descriptive text
 ''')
 
     # When we run the lexer
-    lexer.run()
+    tokens = lexer.run()
 
     # Then we see it was broken down into the right list of tokens
-    lexer.tokens.should.equal([
+    tokens.should.equal([
         (gherkin.TOKEN_NEWLINE, '\n'),
         (gherkin.TOKEN_NEWLINE, '\n'),
         (gherkin.TOKEN_LABEL, 'Feature'),
@@ -214,11 +214,11 @@ Feature: Feature title
 ''')
 
     # When we run the lexer
-    lexer.run()
+    tokens = lexer.run()
 
     # Then we see that everything, including the steps was properly
     # tokenized
-    lexer.tokens.should.equal([
+    tokens.should.equal([
         (gherkin.TOKEN_LABEL, 'Feature'),
         (gherkin.TOKEN_TEXT, 'Feature title'),
         (gherkin.TOKEN_NEWLINE, '\n'),
@@ -390,6 +390,14 @@ def test_parse_feature():
         (gherkin.TOKEN_TEXT, 'Scenario title'),
         (gherkin.TOKEN_NEWLINE, '\n'),
         (gherkin.TOKEN_TEXT, 'Given first step'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_LABEL, 'Scenario'),
+        (gherkin.TOKEN_TEXT, 'Another scenario'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_TEXT, 'Given this step'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_TEXT, 'When we take another step'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
         (gherkin.TOKEN_EOF, ''),
     ])
 
@@ -404,6 +412,9 @@ def test_parse_feature():
         scenarios=[
             Ast.Scenario(title=Ast.Text('Scenario title'),
                          steps=[Ast.Step(Ast.Text('Given first step'))]),
+            Ast.Scenario(title=Ast.Text('Another scenario'),
+                         steps=[Ast.Step(Ast.Text('Given this step')),
+                                Ast.Step(Ast.Text('When we take another step'))]),
         ],
     ))
 

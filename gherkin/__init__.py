@@ -65,6 +65,7 @@ class Lexer(BaseParser):
         state = self.lex_text
         while state:
             state = state()
+        return self.tokens
 
     def lex_text(self):
         while self.accept([' ']):
