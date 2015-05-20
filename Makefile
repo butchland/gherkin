@@ -12,20 +12,18 @@ CUSTOM_PIP_INDEX=
 all: unit functional integration steadymark
 
 unit:
-	@make run_test suite=unit
+	@$(MAKE) run_test suite=unit
 
 functional:
-	@make run_test suite=functional
+	@$(MAKE) run_test suite=functional
 
 integration:
-	@make run_test suite=integration
+	@$(MAKE) run_test suite=integration
 
 run_test:
 	@if [ -d tests/$(suite) ]; then \
 		echo "Running \033[0;32m$(suite)\033[0m test suite"; \
-		make prepare; \
-		nosetests --rednose --stop --with-coverage --cover-package=$(PACKAGE) \
-			--cover-branches --verbosity=2 -s tests/$(suite) ; \
+		$(MAKE) prepare && nosetests tests/$(suite) ; \
 	fi
 
 steadymark:
