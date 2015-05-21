@@ -13,7 +13,8 @@ import re
     TOKEN_META_LABEL,
     TOKEN_META_VALUE,
     TOKEN_LABEL,
-) = range(7)
+    TOKEN_TABLE_COLUMN,
+) = range(8)
 
 
 def compiled_languages():
@@ -64,13 +65,15 @@ class Lexer(BaseParser):
         super(Lexer, self).__init__(stream)
         self.tokens = []
 
-    def emit(self, token):
-        self.tokens.append((token, self.stream[self.start:self.position]))
+    def emit(self, token, strip=False):
+        value = self.stream[self.start:self.position]
+        if strip: value = value.strip()
+        self.tokens.append((token, value))
         self.start = self.position
 
-    def emit_s(self, token):
+    def emit_s(self, token, strip=False):
         if self.position > self.start:
-            self.emit(token)
+            self.emit(token, strip)
 
     def run(self):
         state = self.lex_text
@@ -78,15 +81,33 @@ class Lexer(BaseParser):
             state = state()
         return self.tokens
 
-    def lex_text(self):
-        while self.accept([' ']):
+    def eat_whitespaces(self):
+        while self.accept([' ', '\t']):
             self.ignore()
+
+    def lex_field(self):
+        self.eat_whitespaces()
+        while True:
+            cursor = self.next_()
+            if cursor is None: # EOF
+                break
+            if cursor == '\n':
+                self.backup()
+                return self.lex_text
+            if cursor == '|':
+                self.backup()
+                self.emit_s(TOKEN_TABLE_COLUMN, strip=True)
+                return self.lex_text
+        return self.lex_text
+
+    def lex_text(self):
+        self.eat_whitespaces()
         while True:
             cursor = self.next_()
             if cursor is None: # EOF
                 break
             elif cursor == ':':
-                self.backup()
+                self.backup()   # ignore :
                 self.emit_s(TOKEN_LABEL)
                 self.next_()
                 self.ignore()
@@ -96,6 +117,9 @@ class Lexer(BaseParser):
                 self.emit_s(TOKEN_TEXT)
                 self.next_()
                 return self.lex_comment
+            elif cursor == '|':
+                self.ignore()
+                return self.lex_field
             elif cursor == '\n':
                 self.backup()
                 self.emit_s(TOKEN_TEXT)
@@ -107,8 +131,7 @@ class Lexer(BaseParser):
         return None
 
     def lex_comment(self):
-        while self.accept([' ']):
-            self.ignore()
+        self.eat_whitespaces()
         while True:
             cursor = self.next_()
             if cursor is None: # EOF
@@ -126,8 +149,7 @@ class Lexer(BaseParser):
         return self.lex_text
 
     def lex_comment_metadata_value(self):
-        while self.accept([' ']):
-            self.ignore()
+        self.eat_whitespaces()
         while True:
             cursor = self.next_()
             if cursor is None: # EOF

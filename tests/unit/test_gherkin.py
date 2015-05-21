@@ -261,10 +261,10 @@ def test_lex_load_languages():
     ''')
 
     # When we run the lexer
-    lexer.run()
+    tokens = lexer.run()
 
     # Then the following list of tokens is generated
-    lexer.tokens.should.equal([
+    tokens.should.equal([
         (gherkin.TOKEN_META_LABEL, 'language'),
         (gherkin.TOKEN_META_VALUE, 'pt-br'),
         (gherkin.TOKEN_NEWLINE, '\n'),
@@ -290,6 +290,128 @@ def test_lex_load_languages():
         (gherkin.TOKEN_TEXT, 'Quando mordida'),
         (gherkin.TOKEN_NEWLINE, '\n'),
         (gherkin.TOKEN_TEXT, 'Então a fome passa'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_EOF, '')
+    ])
+
+
+def test_lex_tables():
+    "Lexer.run() Should be able to lex tables"
+
+    lexer = gherkin.Lexer('''\
+  Examples:
+    | column1 | column2 |
+''')
+
+    # When we run the lexer
+    tokens = lexer.run()
+
+    # Then we see the scenario outline case was properly parsed
+    tokens.should.equal([
+        (gherkin.TOKEN_LABEL, 'Examples'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_TABLE_COLUMN, 'column1'),
+        (gherkin.TOKEN_TABLE_COLUMN, 'column2'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_EOF, ''),
+    ])
+
+
+def test_lex_tables_full():
+    "Lexer.run() Should be able to lex scenario outlines"
+
+    lexer = gherkin.Lexer('''\
+  Feature: gherkin has steps with examples
+  Scenario Outline: Add two numbers
+    Given I have <input_1> and <input_2> the calculator
+    When I press Sum!
+    Then the result should be <output> on the screen
+  Examples:
+    | input_1 | input_2 | output |
+    | 20      | 30      | 50     |
+    | 0       | 40      | 40     |
+''')
+
+    # When we run the lexer
+    tokens = lexer.run()
+
+    # Then we see the scenario outline case was properly parsed
+    tokens.should.equal([
+        (gherkin.TOKEN_LABEL, 'Feature'),
+        (gherkin.TOKEN_TEXT, 'gherkin has steps with examples'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_LABEL, 'Scenario Outline'),
+        (gherkin.TOKEN_TEXT, 'Add two numbers'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_TEXT, 'Given I have <input_1> and <input_2> the calculator'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_TEXT, 'When I press Sum!'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_TEXT, 'Then the result should be <output> on the screen'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_LABEL, 'Examples'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_TABLE_COLUMN, 'input_1'),
+        (gherkin.TOKEN_TABLE_COLUMN, 'input_2'),
+        (gherkin.TOKEN_TABLE_COLUMN, 'output'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_TABLE_COLUMN, '20'),
+        (gherkin.TOKEN_TABLE_COLUMN, '30'),
+        (gherkin.TOKEN_TABLE_COLUMN, '50'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_TABLE_COLUMN, '0'),
+        (gherkin.TOKEN_TABLE_COLUMN, '40'),
+        (gherkin.TOKEN_TABLE_COLUMN, '40'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_EOF, '')
+    ])
+
+
+def test_lex_tables_within_steps():
+    "Lexer.run() Should be able to lex example tables from steps"
+
+    # Given a lexer loaded with steps that contain example tables
+    lexer = gherkin.Lexer('''\
+	Feature: Check models existence
+		Background:
+	   Given I have a garden in the database:
+	      | @name  | area | raining |
+	      | Secret Garden | 45   | false   |
+	    And I have gardens in the database:
+	      | name            | area | raining |
+	      | Octopus' Garden | 120  | true    |
+    ''')
+
+    # When we run the lexer
+    tokens = lexer.run()
+
+    # Then we see that steps that contain : will be identified as
+    # labels
+    tokens.should.equal([
+        (gherkin.TOKEN_LABEL, 'Feature'),
+        (gherkin.TOKEN_TEXT, 'Check models existence'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_LABEL, 'Background'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_LABEL, 'Given I have a garden in the database'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_TABLE_COLUMN, '@name'),
+        (gherkin.TOKEN_TABLE_COLUMN, 'area'),
+        (gherkin.TOKEN_TABLE_COLUMN, 'raining'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_TABLE_COLUMN, 'Secret Garden'),
+        (gherkin.TOKEN_TABLE_COLUMN, '45'),
+        (gherkin.TOKEN_TABLE_COLUMN, 'false'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_LABEL, 'And I have gardens in the database'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_TABLE_COLUMN, 'name'),
+        (gherkin.TOKEN_TABLE_COLUMN, 'area'),
+        (gherkin.TOKEN_TABLE_COLUMN, 'raining'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_TABLE_COLUMN, 'Octopus\' Garden'),
+        (gherkin.TOKEN_TABLE_COLUMN, '120'),
+        (gherkin.TOKEN_TABLE_COLUMN, 'true'),
         (gherkin.TOKEN_NEWLINE, '\n'),
         (gherkin.TOKEN_EOF, '')
     ])
