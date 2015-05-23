@@ -593,6 +593,65 @@ def teste_parse_scenarios():
     )])
 
 
+def test_parse_scenario_with_examples():
+    ""
+
+    # Given a parser loaded with the following gherkin document
+    ''' \
+     Scenario: Plant a tree
+       Given the <name> of a garden
+       When I plant a tree
+        And wait for <num_days> days
+       Then I see it growing
+     Examples:
+       | name | num_days |
+       | Secret | 2 |
+       | Octopus | 5 |
+    '''
+
+    parser = Parser([
+        (gherkin.TOKEN_LABEL, 'Scenario'),
+        (gherkin.TOKEN_TEXT, 'Plant a tree'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_TEXT, 'Given the <name> of a garden'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_TEXT, 'When I plant a tree'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_TEXT, 'And wait for <num_days> days'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_TEXT, 'Then I see it growing'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_LABEL, 'Examples'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_TABLE_COLUMN, 'name'),
+        (gherkin.TOKEN_TABLE_COLUMN, 'num_days'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_TABLE_COLUMN, 'Secret'),
+        (gherkin.TOKEN_TABLE_COLUMN, '2'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_TABLE_COLUMN, 'Octopus'),
+        (gherkin.TOKEN_TABLE_COLUMN, '5'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_EOF, '')
+    ])
+
+    scenarios = parser.parse_scenarios()
+
+    scenarios.should.equal([
+        Ast.Scenario(
+            title=Ast.Text('Plant a tree'),
+            steps=[Ast.Step(Ast.Text('Given the <name> of a garden')),
+                   Ast.Step(Ast.Text('When I plant a tree')),
+                   Ast.Step(Ast.Text('And wait for <num_days> days')),
+                   Ast.Step(Ast.Text('Then I see it growing'))],
+            examples=Ast.Examples(table=Ast.Table(fields=[
+                ['name', 'num_days'],
+                ['Secret', '2'],
+                ['Octopus', '5'],
+            ]))
+        )])
+
+
 def test_parse_not_starting_with_feature():
 
     parser = gherkin.Parser(gherkin.Lexer('''
@@ -708,10 +767,6 @@ def test_parse_tables_within_steps():
            When I plant a tree
             And wait for <num_days> days
            Then I see it growing
-         # Examples:
-         #   | name | num_days |
-         #   | Secret | 2 |
-         #   | Octopus | 5 |
     '''
     parser = Parser([
         (gherkin.TOKEN_LABEL, 'Feature'),

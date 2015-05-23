@@ -222,7 +222,16 @@ class Parser(BaseParser):
             if token == TOKEN_TEXT:
                 steps.append(Ast.Step(Ast.Text(value)))
             elif token == TOKEN_LABEL:
-                label = value
+                # Special case, label `Examples' is not a step. Let's
+                # backup here and let `parse_scenarios()` deal with
+                # that.
+                if self.match_label('examples', value):
+                    self.backup()
+                    break
+
+                # Fine, we're not parsing the `Examples' label, we
+                # must be either parsing a table or a multi-line
+                # string block.
                 self.eat_newlines()
                 if self.peek()[0] == TOKEN_TABLE_COLUMN:
                     steps.append(Ast.Step(
@@ -253,6 +262,14 @@ class Parser(BaseParser):
                 break
         return Ast.Table(fields=table)
 
+    def parse_examples(self):
+        token, value = self.next_()
+        if token == TOKEN_LABEL and self.match_label('examples', value):
+            self.eat_newlines()
+            return Ast.Examples(table=self.parse_table())
+        self.backup()
+        return None
+
     def parse_scenarios(self):
         scenarios = []
         while True:
@@ -265,7 +282,8 @@ class Parser(BaseParser):
                      'Scenario expected').format(value))
             scenarios.append(Ast.Scenario(
                 title=self.parse_title(),
-                steps=self.parse_steps()))
+                steps=self.parse_steps(),
+                examples=self.parse_examples()))
         return scenarios
 
     def parse_feature(self):
@@ -298,7 +316,7 @@ class Parser(BaseParser):
 class Ast:
     class Node(object):
         def __eq__(self, other):
-            return other.__dict__ == self.__dict__
+            return getattr(other, '__dict__', None) == self.__dict__
 
     class Metadata(Node):
         def __init__(self, key, value):
@@ -343,8 +361,8 @@ class Ast:
             self.examples = examples
 
         def __repr__(self):
-            return 'Scenario(title={}, description={}, steps={})'.format(
-                self.title, self.description, self.steps)
+            return 'Scenario(title={}, description={}, steps={}, examples={})'.format(
+                self.title, self.description, self.steps, self.examples)
 
     class Step(Node):
         def __init__(self, title, table=None):
@@ -362,6 +380,9 @@ class Ast:
         def __repr__(self):
             return 'Table(fields={})'.format(self.fields)
 
-    # class Examples(Node):
-    #     def __init__(self, table=None):
-    #         self.table = table
+    class Examples(Node):
+        def __init__(self, table=None):
+            self.table = table
+
+        def __repr__(self):
+            return 'Examples(table={})'.format(self.table)
