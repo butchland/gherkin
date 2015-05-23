@@ -6,14 +6,14 @@ import re
 
 
 (
-    TOKEN_EOF,
-    TOKEN_NEWLINE,
-    TOKEN_TEXT,
-    TOKEN_COMMENT,
-    TOKEN_META_LABEL,
-    TOKEN_META_VALUE,
-    TOKEN_LABEL,
-    TOKEN_TABLE_COLUMN,
+    TOKEN_EOF,                  # 0
+    TOKEN_NEWLINE,              # 1
+    TOKEN_TEXT,                 # 2
+    TOKEN_COMMENT,              # 3
+    TOKEN_META_LABEL,           # 4
+    TOKEN_META_VALUE,           # 5
+    TOKEN_LABEL,                # 6
+    TOKEN_TABLE_COLUMN,         # 7
 ) = range(8)
 
 
@@ -49,8 +49,13 @@ class BaseParser(object):
     def ignore(self):
         self.start = self.position
 
-    def backup(self):
-        self.position -= self.width
+    def backup(self, steps=1):
+        self.position -= self.width * steps
+
+    def peek(self):
+        value = self.next_()
+        self.backup()
+        return value
 
     def accept(self, valid):
         if self.next_() in valid:
@@ -91,10 +96,10 @@ class Lexer(BaseParser):
             cursor = self.next_()
             if cursor is None: # EOF
                 break
-            if cursor == '\n':
+            elif cursor == '\n':
                 self.backup()
                 return self.lex_text
-            if cursor == '|':
+            elif cursor == '|':
                 self.backup()
                 self.emit_s(TOKEN_TABLE_COLUMN, strip=True)
                 return self.lex_text
@@ -137,8 +142,8 @@ class Lexer(BaseParser):
             if cursor is None: # EOF
                 break
             elif cursor == '\n':
-                self.emit_s(TOKEN_NEWLINE)
-                return self.lex_text
+                self.backup()
+                break
             elif cursor == ':':
                 self.backup()
                 self.emit(TOKEN_META_LABEL)
@@ -152,14 +157,10 @@ class Lexer(BaseParser):
         self.eat_whitespaces()
         while True:
             cursor = self.next_()
-            if cursor is None: # EOF
-                break
-            elif cursor == '\n':
+            if cursor is None or cursor == '\n':
                 self.backup()
                 self.emit_s(TOKEN_META_VALUE)
                 return self.lex_text
-        self.emit_s(TOKEN_META_VALUE)
-        return self.lex_text
 
 
 class Parser(BaseParser):
@@ -174,25 +175,28 @@ class Parser(BaseParser):
     def match_label(self, type_, label):
         return self.languages[self.language][type_].match(label)
 
+    def eat_newlines(self):
+        while self.accept([(TOKEN_NEWLINE, '\n')]):
+            self.ignore()
+
+    def next_(self):
+        "Same as BaseParser.next_() but returns (None, None) instead of None on EOF"
+        output = super(Parser, self).next_()
+        return (None, None) if output is None \
+            else output
+
     def parse_title(self):
         title = []
         while True:
-            item = self.next_()
-            if item is None:
-                break  # EOF
-            token, value = item
-            if token == TOKEN_NEWLINE:
-                break
+            token, value = self.next_()
+            if token != TOKEN_TEXT: break
             title.append(value)
         return Ast.Text(' '.join(title))
 
     def parse_description(self):
         description = []
         while True:
-            item = self.next_()
-            if item is None:
-                break  # EOF
-            token, value = item
+            token, value = self.next_()
             if token == TOKEN_NEWLINE:
                 continue
             elif token == TOKEN_TEXT:
@@ -209,17 +213,24 @@ class Parser(BaseParser):
             return None
         return Ast.Background(
             self.parse_title(),
-            self.parse_description())
+            self.parse_steps())
 
     def parse_steps(self):
         steps = []
         while True:
-            item = self.next_()
-            if item is None:
-                break  # EOF
-            token, value = item
+            token, value = self.next_()
             if token == TOKEN_TEXT:
                 steps.append(Ast.Step(Ast.Text(value)))
+            elif token == TOKEN_LABEL:
+                label = value
+                self.eat_newlines()
+                if self.peek()[0] == TOKEN_TABLE_COLUMN:
+                    steps.append(Ast.Step(
+                        title=Ast.Text(value),
+                        table=self.parse_table()))
+                else:
+                    self.backup()
+                    break
             elif token == TOKEN_NEWLINE:
                 self.ignore()
             else:
@@ -227,16 +238,28 @@ class Parser(BaseParser):
                 break
         return steps
 
+    def parse_table(self):
+        table = []
+        row = []
+        while True:
+            token, value = self.next_()
+            if token == TOKEN_TABLE_COLUMN:
+                row.append(value)
+            elif token == TOKEN_NEWLINE:
+                table.append(row)
+                row = []
+            else:
+                self.backup()
+                break
+        return Ast.Table(fields=table)
+
     def parse_scenarios(self):
         scenarios = []
         while True:
-            item = self.next_()
-            if item is None:
+            token, value = self.next_()
+            if token in (None, TOKEN_EOF):
                 break  # EOF
-            token, value = item
-            if token == TOKEN_EOF:
-                break
-            if not self.match_label('scenario', value):
+            elif not self.match_label('scenario', value):
                 raise SyntaxError(
                     ('`{}\' should not be declared here, '
                      'Scenario expected').format(value))
@@ -246,8 +269,7 @@ class Parser(BaseParser):
         return scenarios
 
     def parse_feature(self):
-        while self.accept([(TOKEN_NEWLINE, '\n')]):
-            self.ignore()
+        self.eat_newlines()
         token, label = self.next_()
         if not self.match_label('feature', label):
             raise SyntaxError(
@@ -260,15 +282,14 @@ class Parser(BaseParser):
             scenarios=self.parse_scenarios())
 
     def parse_metadata(self):
-        item = self.next_()
-        if item is None: return
-        token, key = item
+        token, key = self.next_()
+        if token in (None, TOKEN_EOF): return
         assert token == TOKEN_META_LABEL
 
-        item = self.next_()
-        if item is None: return
-        token, value = item
-        if token != TOKEN_META_VALUE:
+        token, value = self.next_()
+        if token in (None, TOKEN_EOF):
+            return
+        elif token != TOKEN_META_VALUE:
             raise SyntaxError(
                 'No value found for the meta-field `{}\''.format(key))
         return Ast.Metadata(key, value)
@@ -277,9 +298,7 @@ class Parser(BaseParser):
 class Ast:
     class Node(object):
         def __eq__(self, other):
-            if other is not self and hasattr(other, '__dict__'):
-                return other.__dict__ == self.__dict__
-            return False
+            return other.__dict__ == self.__dict__
 
     class Metadata(Node):
         def __init__(self, key, value):
@@ -297,13 +316,13 @@ class Ast:
             return 'Text("{}")'.format(self.text)
 
     class Background(Node):
-        def __init__(self, title, description=None):
+        def __init__(self, title=None, steps=None):
             self.title = title
-            self.description = description
+            self.steps = steps or []
 
         def __repr__(self):
-            return 'Background(title={}, description={})'.format(
-                self.title, self.description)
+            return 'Background(title={}, steps={})'.format(
+                self.title, self.steps)
 
     class Feature(Node):
         def __init__(self, title, description=None, background=None, scenarios=None):
@@ -317,144 +336,32 @@ class Ast:
                 self.title, self.description, self.background, self.scenarios)
 
     class Scenario(Node):
-        def __init__(self, title, description=None, steps=None):
+        def __init__(self, title, description=None, steps=None, examples=None):
             self.title = title
             self.description = description
             self.steps = steps or []
+            self.examples = examples
 
         def __repr__(self):
             return 'Scenario(title={}, description={}, steps={})'.format(
                 self.title, self.description, self.steps)
 
     class Step(Node):
-        def __init__(self, title):
+        def __init__(self, title, table=None):
             self.title = title
+            self.table = table
 
         def __repr__(self):
-            return 'Step(title={})'.format(self.title)
+            return 'Step(title={}, table={})'.format(
+                self.title, self.table)
 
+    class Table(Node):
+        def __init__(self, fields):
+            self.fields = fields
 
+        def __repr__(self):
+            return 'Table(fields={})'.format(self.fields)
 
-
-
-
-
-
-
-
-
-class matcher(object):
-    """Decorator for creating new matchers for the lexer analyzer.
-
-    This decorator compiles an RE out of the pattern (and flags) received and
-    wrap the actual scan operation with a function that executes the compiled
-    RE, calling the actual function if the matching is successful.
-    """
-    def __init__(self, pattern, flags=0):
-        # Yay, this line will get called only once per pattern since the
-        # matcher (and thus the assigner functions) are called when python is
-        # still reading the decorated methods from the `Lexer` class.
-        self.regex = re.compile(pattern, flags=flags)
-
-    def __call__(self, func):
-
-        # Saving the local attribute inside of the closure's namespace so we
-        # can use it inside of the decorator
-        regex = self.regex
-
-        @wraps(func)
-        def decorator(self, chunk):
-            # The actuall matcher won't get called unless the pattern can be
-            # matched agains the piece of text received from the lexer.
-            found = regex.findall(chunk)
-            if found:
-                return func(self, found[0])
-
-        return decorator
-
-
-class OldLexer(object):
-
-    def __init__(self, skip): pass
-
-    def scan(self, data):
-        i = 0
-        tokens = []
-
-        while i < len(data):
-            chunk = data[i:]
-
-            # Expressions to find out wtf is that chunk
-            handlers = [
-                self.scan_conf,
-                self.scan_comment,
-                self.scan_step,
-                self.scan_examples,
-                self.scan_identifier,
-                self.scan_tags,
-                self.scan_multiline_strings,
-                self.scan_text,
-                self.cookie_monster,
-            ]
-
-            for handler in handlers:
-                found = handler(chunk)
-
-                if found:
-                    kind, token, size = found
-
-                    # The `scan_indent` handler might not return tokens, but we
-                    # still need to skip the newline character found inside of
-                    # the same indent level
-                    if kind:
-                        tokens.append((kind, token))
-
-                    i += size
-                    break
-
-        return tokens
-
-    @matcher(r'\A(\n+)')
-    def cookie_monster(self, found):
-        return ('', found, len(found))
-
-    @matcher(r'\A(\s*\#\s*)(language|encoding)(:\s*)([^\n]+)')
-    def scan_conf(self, found):
-        return ('metadata', (found[1], found[3]), sum(map(len, found)))
-
-    @matcher(r'\A(\s*\#\s*)([^\n]+)')
-    def scan_comment(self, found):
-        return ('comment', found[1], sum(map(len, found)))
-
-    @matcher(r'\A(\s*)@([^\s]+)')
-    def scan_tags(self, found):
-        return ('tag', found[1], sum(map(len, found))+1)
-
-    @matcher(r'\A(\:?\s+\|)([^\n]+)(\|\n)', re.M)
-    def scan_examples(self, found):
-        return ('row',
-                tuple(f.strip() for f in found[1].split('|')),
-                sum(map(len, found)))
-
-    @matcher(r'\A([^\:\n]+)(\: *)([^\n\#]*)')
-    def scan_identifier(self, found):
-        identifier, _, label = found
-        return ('identifier',
-                (identifier.strip(), label.strip()),
-                sum(map(len, found)))
-
-    @matcher(r'\A(\s*)(Given|When|Then|And|But)( *)([^\n\#\:]+)')
-    def scan_step(self, found):
-        _, name, _, text = found
-        return ('step', (name, text), sum(map(len, found)))
-
-    @matcher(r'\A(\:?\s*""")([^"""]+)')
-    def scan_multiline_strings(self, found):
-        lines = (f.strip() for f in found[1].splitlines() if f.strip())
-        return ('text', '\n'.join(lines), sum(map(len, found))+3)
-
-    @matcher(r'\A([^\n\#]+)')
-    def scan_text(self, found):
-        # Corner case? When there's a comment in the same line we have text we
-        # need to strip the text
-        return ('text', found.strip(), len(found))
+    # class Examples(Node):
+    #     def __init__(self, table=None):
+    #         self.table = table
