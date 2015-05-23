@@ -1,6 +1,5 @@
 # -*- coding: utf-8; -*-
 
-from functools import wraps
 from . import languages
 import re
 
@@ -207,7 +206,7 @@ class Parser(BaseParser):
         return Ast.Text(' '.join(description))
 
     def parse_background(self):
-        token, label = self.next_()
+        _, label = self.next_()
         if not self.match_label('background', label):
             self.backup()
             return None
@@ -288,7 +287,7 @@ class Parser(BaseParser):
 
     def parse_feature(self):
         self.eat_newlines()
-        token, label = self.next_()
+        _, label = self.next_()
         if not self.match_label('feature', label):
             raise SyntaxError(
                 'Feature expected in the beginning of the file, '
