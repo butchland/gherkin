@@ -20,8 +20,9 @@ import re
 def compiled_languages():
     compiled = {}
     for language, values in languages.LANGUAGES.items():
-        compiled[language] = dict((kword, re.compile(regex))
-            for (kword, regex) in values.items())
+        compiled[language] = dict(
+            (keyword, re.compile(regex))
+            for (keyword, regex) in values.items())
     return compiled
 
 
@@ -93,8 +94,8 @@ class Lexer(BaseParser):
     def match_quotes(self, cursor):
         stream_at_cursor = self.stream[self.position:]
         return cursor in ('"', "'") and (
-                stream_at_cursor.startswith('""') or
-                stream_at_cursor.startswith("''"))
+            stream_at_cursor.startswith('""') or
+            stream_at_cursor.startswith("''"))
 
     def lex_field(self):
         self.eat_whitespaces()
@@ -210,6 +211,7 @@ class Parser(BaseParser):
         return (None, None) if output is None else output
 
     def parse_title(self):
+        "Parses the stream until token != TOKEN_TEXT than returns Text()"
         title = []
         while True:
             token, value = self.next_()
@@ -242,9 +244,9 @@ class Parser(BaseParser):
     def parse_step_text(self):
         self.next_(); self.ignore()  # Skip enter QUOTES
         token, step_text = self.next_()
-        assert token == TOKEN_TEXT   # XXX: Raise proper exception
+        assert token == TOKEN_TEXT
         token, _ = self.next_()      # Skip exit QUOTES
-        assert token == TOKEN_QUOTES # XXX: Raise proper exception
+        assert token == TOKEN_QUOTES
         self.ignore()
         return Ast.Text(step_text)
 
@@ -263,11 +265,13 @@ class Parser(BaseParser):
 
             if token == TOKEN_NEWLINE:
                 self.ignore()
-            elif token in (TOKEN_LABEL, TOKEN_TEXT) and next_token == TOKEN_TABLE_COLUMN:
+            elif (token in (TOKEN_LABEL, TOKEN_TEXT) and
+                  next_token == TOKEN_TABLE_COLUMN):
                 steps.append(Ast.Step(
                     title=Ast.Text(value),
                     table=self.parse_table()))
-            elif token in (TOKEN_LABEL, TOKEN_TEXT) and next_token == TOKEN_QUOTES:
+            elif (token in (TOKEN_LABEL, TOKEN_TEXT) and
+                  next_token == TOKEN_QUOTES):
                 steps.append(Ast.Step(
                     title=Ast.Text(value),
                     text=self.parse_step_text()))
@@ -345,7 +349,7 @@ class Parser(BaseParser):
         return Ast.Metadata(key, value)
 
 
-class Ast:
+class Ast(object):
     class Node(object):
         def __eq__(self, other):
             return getattr(other, '__dict__', None) == self.__dict__
