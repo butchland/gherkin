@@ -70,12 +70,13 @@ class Lexer(BaseParser):
 
     def __init__(self, stream):
         super(Lexer, self).__init__(stream)
+        self.current_line = 1
         self.tokens = []
 
     def emit(self, token, strip=False):
         value = self.stream[self.start:self.position]
         if strip: value = value.strip()
-        self.tokens.append((token, value))
+        self.tokens.append((self.current_line, token, value))
         self.start = self.position
 
     def emit_s(self, token, strip=False):
@@ -141,17 +142,21 @@ class Lexer(BaseParser):
                 return self.lex_text
 
     def lex_quotes(self):
+        internal_lines = 0
         while True:
             cursor = self.next_()
             if self.match_quotes(cursor):
                 # Consume all the text inside of the quotes
                 self.backup()
                 self.emit_s(TOKEN_TEXT)
+                self.current_line += internal_lines
 
                 # Consume the closing quotes
                 for _ in range(3): self.accept(['"', "'"])
                 self.emit_s(TOKEN_QUOTES)
                 break
+            elif cursor == '\n':
+                internal_lines += 1
         return self.lex_text
 
     def lex_tag(self):
@@ -193,6 +198,7 @@ class Lexer(BaseParser):
                 self.emit_s(TOKEN_TEXT)
                 self.next_()
                 self.emit_s(TOKEN_NEWLINE)
+                self.current_line += 1
                 return self.lex_text
             elif self.match_quotes(cursor):
                 for _ in range(2): self.accept(['"', "'"])
@@ -213,6 +219,18 @@ class Parser(BaseParser):
         self.language = 'en'
         self.languages = LANGUAGES
 
+    def accept(self, valid):
+        _, token, value = self.next_()
+        if (token, value) in valid:
+            return True
+        self.backup()
+        return False
+
+    def next_(self):
+        "Same as BaseParser.next_() but returns (None, None) instead of None on EOF"
+        output = super(Parser, self).next_()
+        return (None, None, None) if output is None else output
+
     def match_label(self, type_, label):
         return self.languages[self.language][type_].match(label)
 
@@ -223,24 +241,23 @@ class Parser(BaseParser):
             count += 1
         return count
 
-    def next_(self):
-        "Same as BaseParser.next_() but returns (None, None) instead of None on EOF"
-        output = super(Parser, self).next_()
-        return (None, None) if output is None else output
 
     def parse_title(self):
         "Parses the stream until token != TOKEN_TEXT than returns Text()"
-        title = []
-        while True:
-            token, value = self.next_()
-            if token != TOKEN_TEXT: break
-            title.append(value)
-        return Ast.Text(' '.join(title))
+        line, token, value = self.next_()
+        if token == TOKEN_TEXT:
+            return Ast.Text(line=line, text=value)
+        else:
+            self.backup()
+            return None
 
     def parse_description(self):
         description = []
+        start_line = -1
         while True:
-            token, value = self.next_()
+            line, token, value = self.next_()
+            if not len(description):
+                start_line = line
             if self.match_label('given', value):
                 self.backup()
                 break
@@ -251,47 +268,55 @@ class Parser(BaseParser):
             else:
                 self.backup()
                 break
-        return Ast.Text(' '.join(description))
+        if description:
+            return Ast.Text(line=start_line, text=' '.join(description))
+        else:
+            return None
 
     def parse_background(self):
-        _, label = self.next_()
+        line, _, label = self.next_()
         if not self.match_label('background', label):
             self.backup()
             return None
         return Ast.Background(
+            line,
             self.parse_title(),
             self.parse_steps())
 
     def parse_step_text(self):
         self.next_(); self.ignore()  # Skip enter QUOTES
-        token, step_text = self.next_()
+        line, token, step_text = self.next_()
         assert token == TOKEN_TEXT
-        token, _ = self.next_()      # Skip exit QUOTES
+        _, token, _ = self.next_()   # Skip exit QUOTES
         assert token == TOKEN_QUOTES
         self.ignore()
-        return Ast.Text(step_text)
+        return Ast.Text(line=line, text=step_text)
 
     def parse_steps(self):
         steps = []
         while True:
-            token, value = self.next_()
+            line, token, value = self.next_()
             backup = self.eat_newlines()
-            next_token = self.peek()[0]
+            _, next_token, _ = self.peek()
             if token == TOKEN_NEWLINE:
                 self.ignore()
             elif (token in (TOKEN_LABEL, TOKEN_TEXT) and
                   next_token == TOKEN_TABLE_COLUMN and not
                   self.match_label('examples', value)):
                 steps.append(Ast.Step(
-                    title=Ast.Text(value),
+                    line=line,
+                    title=Ast.Text(line=line, text=value),
                     table=self.parse_table()))
             elif (token in (TOKEN_LABEL, TOKEN_TEXT) and
                   next_token == TOKEN_QUOTES):
                 steps.append(Ast.Step(
-                    title=Ast.Text(value),
+                    line=line,
+                    title=Ast.Text(line=line, text=value),
                     text=self.parse_step_text()))
             elif token == TOKEN_TEXT:
-                steps.append(Ast.Step(title=Ast.Text(value)))
+                steps.append(Ast.Step(
+                    line=line,
+                    title=Ast.Text(line=line, text=value)))
             else:
                 self.backup(backup + 1)
                 break
@@ -300,8 +325,11 @@ class Parser(BaseParser):
     def parse_table(self):
         table = []
         row = []
+        start_line = -1
         while True:
-            token, value = self.next_()
+            line, token, value = self.next_()
+            if not len(table):
+                start_line = line
             if token == TOKEN_TABLE_COLUMN:
                 row.append(value)
             elif token == TOKEN_NEWLINE:
@@ -310,15 +338,15 @@ class Parser(BaseParser):
             else:
                 self.backup()
                 break
-        return Ast.Table(fields=table)
+        return Ast.Table(line=start_line, fields=table)
 
     def parse_examples(self):
         self.eat_newlines()
         tags = self.parse_tags()
-        token, value = self.next_()
+        line, token, value = self.next_()
         assert token == TOKEN_LABEL and self.match_label('examples', value)
         self.eat_newlines()
-        return Ast.Examples(tags=tags, table=self.parse_table())
+        return Ast.Examples(line=line, tags=tags, table=self.parse_table())
 
     def parse_scenarios(self):
         scenarios = []
@@ -326,18 +354,18 @@ class Parser(BaseParser):
             self.eat_newlines()
             tags = self.parse_tags()
 
-            token, value = self.next_()
+            line, token, value = self.next_()
             if token in (None, TOKEN_EOF):
                 break  # EOF
             elif self.match_label('scenario_outline', value):
-                scenario = Ast.ScenarioOutline()
+                scenario = Ast.ScenarioOutline(line=line)
                 scenario.tags = tags
                 scenario.title = self.parse_title()
                 scenario.description = self.parse_description()
                 scenario.steps = self.parse_steps()
                 scenario.examples = self.parse_examples()
             elif self.match_label('scenario', value):
-                scenario = Ast.Scenario()
+                scenario = Ast.Scenario(line=line)
                 scenario.tags = tags
                 scenario.title = self.parse_title()
                 scenario.description = self.parse_description()
@@ -352,7 +380,7 @@ class Parser(BaseParser):
     def parse_tags(self):
         tags = []
         while True:
-            token, value = self.next_()
+            line, token, value = self.next_()
             if token == TOKEN_TAG:
                 tags.append(value)
             elif token == TOKEN_NEWLINE:
@@ -366,12 +394,13 @@ class Parser(BaseParser):
         feature = Ast.Feature()
         feature.tags = self.parse_tags()
 
-        _, label = self.next_()
+        line, _, label = self.next_()
         if not self.match_label('feature', label):
             raise SyntaxError(
                 'Feature expected in the beginning of the file, '
                 'found `{}\' though.'.format(label))
 
+        feature.line = line
         feature.title = self.parse_title()
         feature.description = self.parse_description()
         feature.background = self.parse_background()
@@ -379,17 +408,17 @@ class Parser(BaseParser):
         return feature
 
     def parse_metadata(self):
-        token, key = self.next_()
+        line, token, key = self.next_()
         if token in (None, TOKEN_EOF): return
         assert token == TOKEN_META_LABEL
 
-        token, value = self.next_()
+        line, token, value = self.next_()
         if token in (None, TOKEN_EOF):
             return
         elif token != TOKEN_META_VALUE:
             raise SyntaxError(
                 'No value found for the meta-field `{}\''.format(key))
-        return Ast.Metadata(key, value)
+        return Ast.Metadata(line, key, value)
 
 
 class Ast(object):
@@ -404,21 +433,25 @@ class Ast(object):
             return '{}({})'.format(self.__class__.__name__, ', '.join(fields))
 
     class Metadata(Node):
-        def __init__(self, key, value):
+        def __init__(self, line, key, value):
+            self.line = line
             self.key = key
             self.value = value
 
     class Text(Node):
-        def __init__(self, text):
+        def __init__(self, line, text):
+            self.line = line
             self.text = text
 
     class Background(Node):
-        def __init__(self, title=None, steps=None):
+        def __init__(self, line, title=None, steps=None):
+            self.line = line
             self.title = title
             self.steps = steps or []
 
     class Feature(Node):
-        def __init__(self, title=None, tags=None, description=None, background=None, scenarios=None):
+        def __init__(self, line=None, title=None, tags=None, description=None, background=None, scenarios=None):
+            self.line = line
             self.title = title
             self.tags = tags or []
             self.description = description
@@ -426,14 +459,16 @@ class Ast(object):
             self.scenarios = scenarios or []
 
     class Scenario(Node):
-        def __init__(self, title=None, tags=None, description=None, steps=None):
+        def __init__(self, line, title=None, tags=None, description=None, steps=None):
+            self.line = line
             self.title = title
             self.tags = tags or []
             self.description = description
             self.steps = steps or []
 
     class ScenarioOutline(Node):
-        def __init__(self, title=None, tags=None, description=None, steps=None, examples=None):
+        def __init__(self, line, title=None, tags=None, description=None, steps=None, examples=None):
+            self.line = line
             self.title = title
             self.tags = tags or []
             self.description = description
@@ -441,16 +476,19 @@ class Ast(object):
             self.examples = examples
 
     class Step(Node):
-        def __init__(self, title, table=None, text=None):
+        def __init__(self, line, title, table=None, text=None):
+            self.line = line
             self.title = title
             self.table = table
             self.text = text
 
     class Table(Node):
-        def __init__(self, fields):
+        def __init__(self, line, fields):
+            self.line = line
             self.fields = fields
 
     class Examples(Node):
-        def __init__(self, tags=None, table=None):
+        def __init__(self, line, tags=None, table=None):
+            self.line = line
             self.tags = tags or []
             self.table = table

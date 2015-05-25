@@ -14,7 +14,7 @@ def test_lex_test_eof():
     new_state = lexer.lex_text()
 
     # Then we see we've got to EOF and that new state is nil
-    lexer.tokens.should.equal([(gherkin.TOKEN_EOF, '')])
+    lexer.tokens.should.equal([(1, gherkin.TOKEN_EOF, '')])
     new_state.should.be.none
 
 
@@ -29,8 +29,8 @@ def test_lex_text():
 
     # Then we see we found both the text and the EOF token
     lexer.tokens.should.equal([
-        (gherkin.TOKEN_TEXT, 'some text'),
-        (gherkin.TOKEN_EOF, '')
+        (1, gherkin.TOKEN_TEXT, 'some text'),
+        (1, gherkin.TOKEN_EOF, '')
     ])
 
     # And the new state is nil
@@ -48,7 +48,7 @@ def test_lex_hash_with_text():
 
     # Then we see the following token on the output list
     lexer.tokens.should.equal([
-        (gherkin.TOKEN_TEXT, 'some text '),
+        (1, gherkin.TOKEN_TEXT, 'some text '),
     ])
 
     # And that the next state will lex comments
@@ -66,7 +66,7 @@ def test_lex_comment():
 
     # Then we see the comment above was captured
     lexer.tokens.should.equal([
-        (gherkin.TOKEN_COMMENT, 'random comment'),
+        (1, gherkin.TOKEN_COMMENT, 'random comment'),
     ])
 
     # And that new state is lex_text()
@@ -84,7 +84,7 @@ def test_lex_comment_meta_label():
 
     # Then we see that a label was found
     lexer.tokens.should.equal([
-        (gherkin.TOKEN_META_LABEL, 'metadata'),
+        (1, gherkin.TOKEN_META_LABEL, 'metadata'),
     ])
 
     # And that new state is going to read the value of the variable we
@@ -105,7 +105,7 @@ def test_lex_comment_metadata_value():
     # Then we see that only the value present is the one before the
     # \n, everything else will be lexed by lex_text
     lexer.tokens.should.equal([
-        (gherkin.TOKEN_META_VALUE, 'test value'),
+        (1, gherkin.TOKEN_META_VALUE, 'test value'),
     ])
 
     # And we also see that the next
@@ -121,7 +121,7 @@ def test_lex_comment_no_newline():
 
     # Then we see the whole line was captured
     lexer.tokens.should.equal([
-        (gherkin.TOKEN_META_VALUE, 'test comment'),
+        (1, gherkin.TOKEN_META_VALUE, 'test comment'),
     ])
 
     # And we also see that the next
@@ -139,10 +139,10 @@ def test_lex_comment_until_newline():
 
     # Then we see both lines were captured
     lexer.tokens.should.equal([
-        (gherkin.TOKEN_COMMENT, 'one line'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_COMMENT, 'another line'),
-        (gherkin.TOKEN_EOF, ''),
+        (1, gherkin.TOKEN_COMMENT, 'one line'),
+        (1, gherkin.TOKEN_NEWLINE, '\n'),
+        (2, gherkin.TOKEN_COMMENT, 'another line'),
+        (2, gherkin.TOKEN_EOF, ''),
     ])
 
 
@@ -158,12 +158,12 @@ def test_lex_comment_full():
     # Then I see the tokens collected match some text, a field, more
     # text and EOF
     tokens.should.equal([
-        (gherkin.TOKEN_TEXT, 'some text '),
-        (gherkin.TOKEN_META_LABEL, 'metadata-field'),
-        (gherkin.TOKEN_META_VALUE, 'blah-value'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'text'),
-        (gherkin.TOKEN_EOF, '')
+        (1, gherkin.TOKEN_TEXT, 'some text '),
+        (1, gherkin.TOKEN_META_LABEL, 'metadata-field'),
+        (1, gherkin.TOKEN_META_VALUE, 'blah-value'),
+        (1, gherkin.TOKEN_NEWLINE, '\n'),
+        (2, gherkin.TOKEN_TEXT, 'text'),
+        (2, gherkin.TOKEN_EOF, '')
     ])
 
 
@@ -180,13 +180,13 @@ def test_lex_text_with_label():
     # Then we see the token list matches the label, text, text EOF
     # sequence
     tokens.should.equal([
-        (gherkin.TOKEN_LABEL, 'Feature'),
-        (gherkin.TOKEN_TEXT, 'A cool feature'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'some more text'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'even more text'),
-        (gherkin.TOKEN_EOF, '')
+        (1, gherkin.TOKEN_LABEL, 'Feature'),
+        (1, gherkin.TOKEN_TEXT, 'A cool feature'),
+        (1, gherkin.TOKEN_NEWLINE, '\n'),
+        (2, gherkin.TOKEN_TEXT, 'some more text'),
+        (2, gherkin.TOKEN_NEWLINE, '\n'),
+        (3, gherkin.TOKEN_TEXT, 'even more text'),
+        (3, gherkin.TOKEN_EOF, '')
     ])
 
 
@@ -211,25 +211,25 @@ Feature: Some descriptive text
 
     # Then we see it was broken down into the right list of tokens
     tokens.should.equal([
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_LABEL, 'Feature'),
-        (gherkin.TOKEN_TEXT, 'Some descriptive text'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'In order to parse a Gherkin file'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'As a parser'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'I want to be able to parse scenarios'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'Even more text'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_LABEL, 'Scenario'),
-        (gherkin.TOKEN_TEXT, 'The user wants to describe a feature'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_EOF, '')
+        (1, gherkin.TOKEN_NEWLINE, '\n'),
+        (2, gherkin.TOKEN_NEWLINE, '\n'),
+        (3, gherkin.TOKEN_LABEL, 'Feature'),
+        (3, gherkin.TOKEN_TEXT, 'Some descriptive text'),
+        (3, gherkin.TOKEN_NEWLINE, '\n'),
+        (4, gherkin.TOKEN_TEXT, 'In order to parse a Gherkin file'),
+        (4, gherkin.TOKEN_NEWLINE, '\n'),
+        (5, gherkin.TOKEN_TEXT, 'As a parser'),
+        (5, gherkin.TOKEN_NEWLINE, '\n'),
+        (6, gherkin.TOKEN_TEXT, 'I want to be able to parse scenarios'),
+        (6, gherkin.TOKEN_NEWLINE, '\n'),
+        (7, gherkin.TOKEN_NEWLINE, '\n'),
+        (8, gherkin.TOKEN_TEXT, 'Even more text'),
+        (8, gherkin.TOKEN_NEWLINE, '\n'),
+        (9, gherkin.TOKEN_NEWLINE, '\n'),
+        (10, gherkin.TOKEN_LABEL, 'Scenario'),
+        (10, gherkin.TOKEN_TEXT, 'The user wants to describe a feature'),
+        (10, gherkin.TOKEN_NEWLINE, '\n'),
+        (11, gherkin.TOKEN_EOF, '')
     ])
 
 
@@ -254,26 +254,26 @@ Feature: Feature title
     # Then we see that everything, including the steps was properly
     # tokenized
     tokens.should.equal([
-        (gherkin.TOKEN_LABEL, 'Feature'),
-        (gherkin.TOKEN_TEXT, 'Feature title'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'feature description'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_LABEL, 'Background'),
-        (gherkin.TOKEN_TEXT, 'Some background'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'about the problem'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_LABEL, 'Scenario'),
-        (gherkin.TOKEN_TEXT, 'Scenario title'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'Given first step'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'When second step'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'Then third step'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_EOF, '')
+        (1, gherkin.TOKEN_LABEL, 'Feature'),
+        (1, gherkin.TOKEN_TEXT, 'Feature title'),
+        (1, gherkin.TOKEN_NEWLINE, '\n'),
+        (2, gherkin.TOKEN_TEXT, 'feature description'),
+        (2, gherkin.TOKEN_NEWLINE, '\n'),
+        (3, gherkin.TOKEN_LABEL, 'Background'),
+        (3, gherkin.TOKEN_TEXT, 'Some background'),
+        (3, gherkin.TOKEN_NEWLINE, '\n'),
+        (4, gherkin.TOKEN_TEXT, 'about the problem'),
+        (4, gherkin.TOKEN_NEWLINE, '\n'),
+        (5, gherkin.TOKEN_LABEL, 'Scenario'),
+        (5, gherkin.TOKEN_TEXT, 'Scenario title'),
+        (5, gherkin.TOKEN_NEWLINE, '\n'),
+        (6, gherkin.TOKEN_TEXT, 'Given first step'),
+        (6, gherkin.TOKEN_NEWLINE, '\n'),
+        (7, gherkin.TOKEN_TEXT, 'When second step'),
+        (7, gherkin.TOKEN_NEWLINE, '\n'),
+        (8, gherkin.TOKEN_TEXT, 'Then third step'),
+        (8, gherkin.TOKEN_NEWLINE, '\n'),
+        (9, gherkin.TOKEN_EOF, '')
     ])
 
 
@@ -300,33 +300,33 @@ def test_lex_load_languages():
 
     # Then the following list of tokens is generated
     tokens.should.equal([
-        (gherkin.TOKEN_META_LABEL, 'language'),
-        (gherkin.TOKEN_META_VALUE, 'pt-br'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_LABEL, 'Funcionalidade'),
-        (gherkin.TOKEN_TEXT, 'Interpretador para gherkin'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'Para escrever testes de aceitação'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'Como um programador'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'Preciso de uma ferramenta de BDD'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_LABEL, 'Contexto'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'Dado que a variavel "X" contém o número 2'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_LABEL, 'Cenário'),
-        (gherkin.TOKEN_TEXT, 'Lanche'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'Dada uma maçã'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'Quando mordida'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'Então a fome passa'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_EOF, '')
+        (1, gherkin.TOKEN_META_LABEL, 'language'),
+        (1, gherkin.TOKEN_META_VALUE, 'pt-br'),
+        (1, gherkin.TOKEN_NEWLINE, '\n'),
+        (2, gherkin.TOKEN_NEWLINE, '\n'),
+        (3, gherkin.TOKEN_LABEL, 'Funcionalidade'),
+        (3, gherkin.TOKEN_TEXT, 'Interpretador para gherkin'),
+        (3, gherkin.TOKEN_NEWLINE, '\n'),
+        (4, gherkin.TOKEN_TEXT, 'Para escrever testes de aceitação'),
+        (4, gherkin.TOKEN_NEWLINE, '\n'),
+        (5, gherkin.TOKEN_TEXT, 'Como um programador'),
+        (5, gherkin.TOKEN_NEWLINE, '\n'),
+        (6, gherkin.TOKEN_TEXT, 'Preciso de uma ferramenta de BDD'),
+        (6, gherkin.TOKEN_NEWLINE, '\n'),
+        (7, gherkin.TOKEN_LABEL, 'Contexto'),
+        (7, gherkin.TOKEN_NEWLINE, '\n'),
+        (8, gherkin.TOKEN_TEXT, 'Dado que a variavel "X" contém o número 2'),
+        (8, gherkin.TOKEN_NEWLINE, '\n'),
+        (9, gherkin.TOKEN_LABEL, 'Cenário'),
+        (9, gherkin.TOKEN_TEXT, 'Lanche'),
+        (9, gherkin.TOKEN_NEWLINE, '\n'),
+        (10, gherkin.TOKEN_TEXT, 'Dada uma maçã'),
+        (10, gherkin.TOKEN_NEWLINE, '\n'),
+        (11, gherkin.TOKEN_TEXT, 'Quando mordida'),
+        (11, gherkin.TOKEN_NEWLINE, '\n'),
+        (12, gherkin.TOKEN_TEXT, 'Então a fome passa'),
+        (12, gherkin.TOKEN_NEWLINE, '\n'),
+        (13, gherkin.TOKEN_EOF, '')
     ])
 
 
@@ -344,11 +344,11 @@ def test_lex_tables():
 
     # Then we see the scenario outline case was properly parsed
     tokens.should.equal([
-        (gherkin.TOKEN_LABEL, 'Examples'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'column1'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'column2'),
-        (gherkin.TOKEN_EOF, ''),
+        (1, gherkin.TOKEN_LABEL, 'Examples'),
+        (1, gherkin.TOKEN_NEWLINE, '\n'),
+        (2, gherkin.TOKEN_TABLE_COLUMN, 'column1'),
+        (2, gherkin.TOKEN_TABLE_COLUMN, 'column2'),
+        (2, gherkin.TOKEN_EOF, ''),
     ])
 
 
@@ -372,33 +372,33 @@ def test_lex_tables_full():
 
     # Then we see the scenario outline case was properly parsed
     tokens.should.equal([
-        (gherkin.TOKEN_LABEL, 'Feature'),
-        (gherkin.TOKEN_TEXT, 'gherkin has steps with examples'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_LABEL, 'Scenario Outline'),
-        (gherkin.TOKEN_TEXT, 'Add two numbers'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'Given I have <input_1> and <input_2> the calculator'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'When I press "Sum"!'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'Then the result should be <output> on the screen'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_LABEL, 'Examples'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'input_1'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'input_2'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'output'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TABLE_COLUMN, '20'),
-        (gherkin.TOKEN_TABLE_COLUMN, '30'),
-        (gherkin.TOKEN_TABLE_COLUMN, '50'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TABLE_COLUMN, '0'),
-        (gherkin.TOKEN_TABLE_COLUMN, '40'),
-        (gherkin.TOKEN_TABLE_COLUMN, '40'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_EOF, '')
+        (1, gherkin.TOKEN_LABEL, 'Feature'),
+        (1, gherkin.TOKEN_TEXT, 'gherkin has steps with examples'),
+        (1, gherkin.TOKEN_NEWLINE, '\n'),
+        (2, gherkin.TOKEN_LABEL, 'Scenario Outline'),
+        (2, gherkin.TOKEN_TEXT, 'Add two numbers'),
+        (2, gherkin.TOKEN_NEWLINE, '\n'),
+        (3, gherkin.TOKEN_TEXT, 'Given I have <input_1> and <input_2> the calculator'),
+        (3, gherkin.TOKEN_NEWLINE, '\n'),
+        (4, gherkin.TOKEN_TEXT, 'When I press "Sum"!'),
+        (4, gherkin.TOKEN_NEWLINE, '\n'),
+        (5, gherkin.TOKEN_TEXT, 'Then the result should be <output> on the screen'),
+        (5, gherkin.TOKEN_NEWLINE, '\n'),
+        (6, gherkin.TOKEN_LABEL, 'Examples'),
+        (6, gherkin.TOKEN_NEWLINE, '\n'),
+        (7, gherkin.TOKEN_TABLE_COLUMN, 'input_1'),
+        (7, gherkin.TOKEN_TABLE_COLUMN, 'input_2'),
+        (7, gherkin.TOKEN_TABLE_COLUMN, 'output'),
+        (7, gherkin.TOKEN_NEWLINE, '\n'),
+        (8, gherkin.TOKEN_TABLE_COLUMN, '20'),
+        (8, gherkin.TOKEN_TABLE_COLUMN, '30'),
+        (8, gherkin.TOKEN_TABLE_COLUMN, '50'),
+        (8, gherkin.TOKEN_NEWLINE, '\n'),
+        (9, gherkin.TOKEN_TABLE_COLUMN, '0'),
+        (9, gherkin.TOKEN_TABLE_COLUMN, '40'),
+        (9, gherkin.TOKEN_TABLE_COLUMN, '40'),
+        (9, gherkin.TOKEN_NEWLINE, '\n'),
+        (10, gherkin.TOKEN_EOF, '')
     ])
 
 
@@ -423,32 +423,32 @@ def test_lex_tables_within_steps():
     # Then we see that steps that contain : will be identified as
     # labels
     tokens.should.equal([
-        (gherkin.TOKEN_LABEL, 'Feature'),
-        (gherkin.TOKEN_TEXT, 'Check models existence'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_LABEL, 'Background'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_LABEL, 'Given I have a garden in the database'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TABLE_COLUMN, '@name'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'area'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'raining'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'Secret Garden'),
-        (gherkin.TOKEN_TABLE_COLUMN, '45'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'false'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_LABEL, 'And I have gardens in the database'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'name'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'area'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'raining'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'Octopus\' Garden'),
-        (gherkin.TOKEN_TABLE_COLUMN, '120'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'true'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_EOF, '')
+        (1, gherkin.TOKEN_LABEL, 'Feature'),
+        (1, gherkin.TOKEN_TEXT, 'Check models existence'),
+        (1, gherkin.TOKEN_NEWLINE, '\n'),
+        (2, gherkin.TOKEN_LABEL, 'Background'),
+        (2, gherkin.TOKEN_NEWLINE, '\n'),
+        (3, gherkin.TOKEN_LABEL, 'Given I have a garden in the database'),
+        (3, gherkin.TOKEN_NEWLINE, '\n'),
+        (4, gherkin.TOKEN_TABLE_COLUMN, '@name'),
+        (4, gherkin.TOKEN_TABLE_COLUMN, 'area'),
+        (4, gherkin.TOKEN_TABLE_COLUMN, 'raining'),
+        (4, gherkin.TOKEN_NEWLINE, '\n'),
+        (5, gherkin.TOKEN_TABLE_COLUMN, 'Secret Garden'),
+        (5, gherkin.TOKEN_TABLE_COLUMN, '45'),
+        (5, gherkin.TOKEN_TABLE_COLUMN, 'false'),
+        (5, gherkin.TOKEN_NEWLINE, '\n'),
+        (6, gherkin.TOKEN_LABEL, 'And I have gardens in the database'),
+        (6, gherkin.TOKEN_NEWLINE, '\n'),
+        (7, gherkin.TOKEN_TABLE_COLUMN, 'name'),
+        (7, gherkin.TOKEN_TABLE_COLUMN, 'area'),
+        (7, gherkin.TOKEN_TABLE_COLUMN, 'raining'),
+        (7, gherkin.TOKEN_NEWLINE, '\n'),
+        (8, gherkin.TOKEN_TABLE_COLUMN, 'Octopus\' Garden'),
+        (8, gherkin.TOKEN_TABLE_COLUMN, '120'),
+        (8, gherkin.TOKEN_TABLE_COLUMN, 'true'),
+        (8, gherkin.TOKEN_NEWLINE, '\n'),
+        (9, gherkin.TOKEN_EOF, '')
     ])
 
 
@@ -472,22 +472,22 @@ def test_lex_multi_line_str():
 
     # Then we see that triple quoted strings are captured by the lexer
     tokens.should.equal([
-        (gherkin.TOKEN_LABEL, 'Given the following email template'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_QUOTES, "'''"),
-        (gherkin.TOKEN_TEXT, '''Here we go with a pretty
+        (1, gherkin.TOKEN_LABEL, 'Given the following email template'),
+        (1, gherkin.TOKEN_NEWLINE, '\n'),
+        (2, gherkin.TOKEN_QUOTES, "'''"),
+        (2, gherkin.TOKEN_TEXT, '''Here we go with a pretty
        big block of text
        surrounded by triple quoted strings
        '''),
-        (gherkin.TOKEN_QUOTES, "'''"),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'And a cat picture'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_QUOTES, '"""'),
-        (gherkin.TOKEN_TEXT, "Now notice we didn't use (:) above\n       "),
-        (gherkin.TOKEN_QUOTES, '"""'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_EOF, '')
+        (5, gherkin.TOKEN_QUOTES, "'''"),
+        (5, gherkin.TOKEN_NEWLINE, '\n'),
+        (6, gherkin.TOKEN_TEXT, 'And a cat picture'),
+        (6, gherkin.TOKEN_NEWLINE, '\n'),
+        (7, gherkin.TOKEN_QUOTES, '"""'),
+        (7, gherkin.TOKEN_TEXT, "Now notice we didn't use (:) above\n       "),
+        (8, gherkin.TOKEN_QUOTES, '"""'),
+        (8, gherkin.TOKEN_NEWLINE, '\n'),
+        (9, gherkin.TOKEN_EOF, '')
     ])
 
 def test_lex_tags_empty():
@@ -520,25 +520,25 @@ def test_lex_tags():
 
     # Then we see that triple quoted strings are captured by the lexer
     tokens.should.equal([
-        (gherkin.TOKEN_TAG, 'tagged-feature'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_LABEL, 'Feature'),
-        (gherkin.TOKEN_TEXT, 'Parse tags'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TAG, 'tag1'),
-        (gherkin.TOKEN_TAG, 'tag2'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_LABEL, 'Scenario'),
-        (gherkin.TOKEN_TEXT, 'Test'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_EOF, ''),
+        (1, gherkin.TOKEN_TAG, 'tagged-feature'),
+        (1, gherkin.TOKEN_NEWLINE, '\n'),
+        (2, gherkin.TOKEN_LABEL, 'Feature'),
+        (2, gherkin.TOKEN_TEXT, 'Parse tags'),
+        (2, gherkin.TOKEN_NEWLINE, '\n'),
+        (3, gherkin.TOKEN_NEWLINE, '\n'),
+        (4, gherkin.TOKEN_TAG, 'tag1'),
+        (4, gherkin.TOKEN_TAG, 'tag2'),
+        (4, gherkin.TOKEN_NEWLINE, '\n'),
+        (5, gherkin.TOKEN_LABEL, 'Scenario'),
+        (5, gherkin.TOKEN_TEXT, 'Test'),
+        (5, gherkin.TOKEN_NEWLINE, '\n'),
+        (6, gherkin.TOKEN_EOF, ''),
     ])
 
 
 def test_parse_metadata_empty():
 
-    Parser([(gherkin.TOKEN_EOF, '')]).parse_metadata().should.be.none
+    Parser([(1, gherkin.TOKEN_EOF, '')]).parse_metadata().should.be.none
 
     Parser([None]).parse_metadata().should.be.none
 
@@ -546,8 +546,8 @@ def test_parse_metadata_empty():
 def test_parse_metadata_incomplete():
 
     parser = Parser([
-        (gherkin.TOKEN_META_LABEL, 'language'),
-        (gherkin.TOKEN_EOF, ''),
+        (1, gherkin.TOKEN_META_LABEL, 'language'),
+        (1, gherkin.TOKEN_EOF, ''),
     ])
 
     parser.parse_metadata().should.be.none
@@ -556,8 +556,8 @@ def test_parse_metadata_incomplete():
 def test_parse_metadata_syntax_error():
 
     parser = Parser([
-        (gherkin.TOKEN_META_LABEL, 'language'),
-        (gherkin.TOKEN_TEXT, 'pt-br'),
+        (1, gherkin.TOKEN_META_LABEL, 'language'),
+        (1, gherkin.TOKEN_TEXT, 'pt-br'),
     ])
 
     parser.parse_metadata.when.called.should.throw(
@@ -567,58 +567,58 @@ def test_parse_metadata_syntax_error():
 def test_parse_metadata():
 
     parser = Parser([
-        (gherkin.TOKEN_META_LABEL, 'language'),
-        (gherkin.TOKEN_META_VALUE, 'pt-br'),
+        (1, gherkin.TOKEN_META_LABEL, 'language'),
+        (1, gherkin.TOKEN_META_VALUE, 'pt-br'),
     ])
 
     metadata = parser.parse_metadata()
 
-    metadata.should.equal(Ast.Metadata('language', 'pt-br'))
+    metadata.should.equal(Ast.Metadata(line=1, key='language', value='pt-br'))
 
 
 def test_parse_empty_title():
 
     parser = Parser([
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'more text after title'),
+        (1, gherkin.TOKEN_NEWLINE, '\n'),
+        (2, gherkin.TOKEN_TEXT, 'more text after title'),
     ])
 
     feature = parser.parse_title()
 
-    feature.should.equal(Ast.Text(''))
+    feature.should.be.none
 
 
 def test_parse_title():
 
     parser = Parser([
-        (gherkin.TOKEN_TEXT, 'Scenario title'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
+        (1, gherkin.TOKEN_TEXT, 'Scenario title'),
+        (1, gherkin.TOKEN_NEWLINE, '\n'),
     ])
 
     feature = parser.parse_title()
 
-    feature.should.equal(Ast.Text('Scenario title'))
+    feature.should.equal(Ast.Text(line=1, text='Scenario title'))
 
 
 def test_parse_table():
 
     parser = Parser([
-        (gherkin.TOKEN_TABLE_COLUMN, 'name'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'email'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'Lincoln'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'lincoln@clarete.li'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'Gabriel'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'gabriel@nacaolivre.org'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_LABEL, 'Scenario'),
-        (gherkin.TOKEN_EOF, ''),
+        (1, gherkin.TOKEN_TABLE_COLUMN, 'name'),
+        (1, gherkin.TOKEN_TABLE_COLUMN, 'email'),
+        (1, gherkin.TOKEN_NEWLINE, '\n'),
+        (2, gherkin.TOKEN_TABLE_COLUMN, 'Lincoln'),
+        (2, gherkin.TOKEN_TABLE_COLUMN, 'lincoln@clarete.li'),
+        (2, gherkin.TOKEN_NEWLINE, '\n'),
+        (3, gherkin.TOKEN_TABLE_COLUMN, 'Gabriel'),
+        (3, gherkin.TOKEN_TABLE_COLUMN, 'gabriel@nacaolivre.org'),
+        (3, gherkin.TOKEN_NEWLINE, '\n'),
+        (4, gherkin.TOKEN_LABEL, 'Scenario'),
+        (4, gherkin.TOKEN_EOF, ''),
     ])
 
     feature = parser.parse_table()
 
-    feature.should.equal(Ast.Table(fields=[
+    feature.should.equal(Ast.Table(line=1, fields=[
         ['name', 'email'],
         ['Lincoln', 'lincoln@clarete.li'],
         ['Gabriel', 'gabriel@nacaolivre.org'],
@@ -634,21 +634,21 @@ def test_parse_background():
     #    | Gabriel | gabriel@nacaolivre.org |
     # Scenario:
     parser = Parser([
-        (gherkin.TOKEN_LABEL, 'Background'),
-        (gherkin.TOKEN_TEXT, 'title'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_LABEL, 'Given two users in the database'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'name'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'email'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'Lincoln'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'lincoln@clarete.li'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'Gabriel'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'gabriel@nacaolivre.org'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_LABEL, 'Scenario'),
+        (1, gherkin.TOKEN_LABEL, 'Background'),
+        (1, gherkin.TOKEN_TEXT, 'title'),
+        (1, gherkin.TOKEN_NEWLINE, '\n'),
+        (2, gherkin.TOKEN_LABEL, 'Given two users in the database'),
+        (2, gherkin.TOKEN_NEWLINE, '\n'),
+        (3, gherkin.TOKEN_TABLE_COLUMN, 'name'),
+        (3, gherkin.TOKEN_TABLE_COLUMN, 'email'),
+        (3, gherkin.TOKEN_NEWLINE, '\n'),
+        (4, gherkin.TOKEN_TABLE_COLUMN, 'Lincoln'),
+        (4, gherkin.TOKEN_TABLE_COLUMN, 'lincoln@clarete.li'),
+        (4, gherkin.TOKEN_NEWLINE, '\n'),
+        (5, gherkin.TOKEN_TABLE_COLUMN, 'Gabriel'),
+        (5, gherkin.TOKEN_TABLE_COLUMN, 'gabriel@nacaolivre.org'),
+        (5, gherkin.TOKEN_NEWLINE, '\n'),
+        (6, gherkin.TOKEN_LABEL, 'Scenario'),
     ])
 
     # When the background is parsed
@@ -658,11 +658,13 @@ def test_parse_background():
     # with examples. Notice the scenario label is not returned
     # anywhere here
     feature.should.equal(Ast.Background(
-        title=Ast.Text('title'),
+        line=1,
+        title=Ast.Text(line=1, text='title'),
         steps=[
             Ast.Step(
-                title=Ast.Text('Given two users in the database'),
-                table=Ast.Table([
+                line=2,
+                title=Ast.Text(line=2, text='Given two users in the database'),
+                table=Ast.Table(line=3, fields=[
                     ['name', 'email'],
                     ['Lincoln', 'lincoln@clarete.li'],
                     ['Gabriel', 'gabriel@nacaolivre.org'],
@@ -676,39 +678,40 @@ def test_parse_background():
 def teste_parse_scenario():
 
     parser = Parser([
-        (gherkin.TOKEN_LABEL, 'Scenario'),
-        (gherkin.TOKEN_TEXT, 'Scenario title'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'Given first step'),
+        (1, gherkin.TOKEN_LABEL, 'Scenario'),
+        (1, gherkin.TOKEN_TEXT, 'Scenario title'),
+        (1, gherkin.TOKEN_NEWLINE, '\n'),
+        (2, gherkin.TOKEN_TEXT, 'Given first step'),
     ])
 
     feature = parser.parse_scenarios()
 
     feature.should.equal([Ast.Scenario(
-        title=Ast.Text('Scenario title'),
-        description=Ast.Text(text=''),
-        steps=[Ast.Step(Ast.Text('Given first step'))],
+        line=1,
+        title=Ast.Text(line=1, text='Scenario title'),
+        steps=[Ast.Step(line=2, title=Ast.Text(line=2, text='Given first step'))],
     )])
 
 
 def teste_parse_scenario_with_description():
 
     parser = Parser([
-        (gherkin.TOKEN_LABEL, 'Scenario'),
-        (gherkin.TOKEN_TEXT, 'Scenario title'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'Scenario description'),
-        (gherkin.TOKEN_TEXT, 'More description'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'Given first step'),
+        (1, gherkin.TOKEN_LABEL, 'Scenario'),
+        (1, gherkin.TOKEN_TEXT, 'Scenario title'),
+        (1, gherkin.TOKEN_NEWLINE, '\n'),
+        (2, gherkin.TOKEN_TEXT, 'Scenario description'),
+        (2, gherkin.TOKEN_TEXT, 'More description'),
+        (2, gherkin.TOKEN_NEWLINE, '\n'),
+        (3, gherkin.TOKEN_TEXT, 'Given first step'),
     ])
 
     feature = parser.parse_scenarios()
 
     feature.should.equal([Ast.Scenario(
-        title=Ast.Text('Scenario title'),
-        description=Ast.Text('Scenario description More description'),
-        steps=[Ast.Step(Ast.Text('Given first step'))],
+        line=1,
+        title=Ast.Text(line=1, text='Scenario title'),
+        description=Ast.Text( line=2, text='Scenario description More description'),
+        steps=[Ast.Step(line=3, title=Ast.Text(line=3, text='Given first step'))],
     )])
 
 
@@ -727,42 +730,42 @@ def test_parse_scenario_outline_with_examples():
     #       | Secret | 2 |
     #       | Octopus | 5 |
     parser = Parser([
-        (gherkin.TOKEN_LABEL, 'Scenario Outline'),
-        (gherkin.TOKEN_TEXT, 'Plant a tree'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'Given the <name> of a garden'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'When I plant a tree'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'And wait for <num_days> days'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'Then I see it growing'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_LABEL, 'Examples'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'name'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'num_days'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'Secret'),
-        (gherkin.TOKEN_TABLE_COLUMN, '2'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'Octopus'),
-        (gherkin.TOKEN_TABLE_COLUMN, '5'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_EOF, '')
+        (1, gherkin.TOKEN_LABEL, 'Scenario Outline'),
+        (1, gherkin.TOKEN_TEXT, 'Plant a tree'),
+        (1, gherkin.TOKEN_NEWLINE, '\n'),
+        (2, gherkin.TOKEN_TEXT, 'Given the <name> of a garden'),
+        (2, gherkin.TOKEN_NEWLINE, '\n'),
+        (3, gherkin.TOKEN_TEXT, 'When I plant a tree'),
+        (3, gherkin.TOKEN_NEWLINE, '\n'),
+        (4, gherkin.TOKEN_TEXT, 'And wait for <num_days> days'),
+        (4, gherkin.TOKEN_NEWLINE, '\n'),
+        (5, gherkin.TOKEN_TEXT, 'Then I see it growing'),
+        (5, gherkin.TOKEN_NEWLINE, '\n'),
+        (6, gherkin.TOKEN_LABEL, 'Examples'),
+        (6, gherkin.TOKEN_NEWLINE, '\n'),
+        (7, gherkin.TOKEN_TABLE_COLUMN, 'name'),
+        (7, gherkin.TOKEN_TABLE_COLUMN, 'num_days'),
+        (7, gherkin.TOKEN_NEWLINE, '\n'),
+        (8, gherkin.TOKEN_TABLE_COLUMN, 'Secret'),
+        (8, gherkin.TOKEN_TABLE_COLUMN, '2'),
+        (8, gherkin.TOKEN_NEWLINE, '\n'),
+        (9, gherkin.TOKEN_TABLE_COLUMN, 'Octopus'),
+        (9, gherkin.TOKEN_TABLE_COLUMN, '5'),
+        (9, gherkin.TOKEN_NEWLINE, '\n'),
+        (10, gherkin.TOKEN_EOF, '')
     ])
 
     scenarios = parser.parse_scenarios()
 
     scenarios.should.equal([
         Ast.ScenarioOutline(
-            title=Ast.Text('Plant a tree'),
-            description=Ast.Text(''),
-            steps=[Ast.Step(Ast.Text('Given the <name> of a garden')),
-                   Ast.Step(Ast.Text('When I plant a tree')),
-                   Ast.Step(Ast.Text('And wait for <num_days> days')),
-                   Ast.Step(Ast.Text('Then I see it growing'))],
-            examples=Ast.Examples(table=Ast.Table(fields=[
+            line=1,
+            title=Ast.Text(line=1, text='Plant a tree'),
+            steps=[Ast.Step(line=2, title=Ast.Text(line=2, text='Given the <name> of a garden')),
+                   Ast.Step(line=3, title=Ast.Text(line=3, text='When I plant a tree')),
+                   Ast.Step(line=4, title=Ast.Text(line=4, text='And wait for <num_days> days')),
+                   Ast.Step(line=5, title=Ast.Text(line=5, text='Then I see it growing'))],
+            examples=Ast.Examples(line=6, table=Ast.Table(line=7, fields=[
                 ['name', 'num_days'],
                 ['Secret', '2'],
                 ['Octopus', '5'],
@@ -826,47 +829,49 @@ Feature: Feature title
 def test_parse_feature():
 
     parser = Parser([
-        (gherkin.TOKEN_LABEL, 'Feature'),
-        (gherkin.TOKEN_TEXT, 'Feature title'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'feature description'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_LABEL, 'Background'),
-        (gherkin.TOKEN_TEXT, 'Some background'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'about the problem'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_LABEL, 'Scenario'),
-        (gherkin.TOKEN_TEXT, 'Scenario title'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'Given first step'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_LABEL, 'Scenario'),
-        (gherkin.TOKEN_TEXT, 'Another scenario'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'Given this step'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'When we take another step'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_EOF, ''),
+        (1, gherkin.TOKEN_LABEL, 'Feature'),
+        (1, gherkin.TOKEN_TEXT, 'Feature title'),
+        (1, gherkin.TOKEN_NEWLINE, '\n'),
+        (2, gherkin.TOKEN_TEXT, 'feature description'),
+        (2, gherkin.TOKEN_NEWLINE, '\n'),
+        (3, gherkin.TOKEN_LABEL, 'Background'),
+        (3, gherkin.TOKEN_TEXT, 'Some background'),
+        (3, gherkin.TOKEN_NEWLINE, '\n'),
+        (4, gherkin.TOKEN_TEXT, 'Given the problem'),
+        (4, gherkin.TOKEN_NEWLINE, '\n'),
+        (5, gherkin.TOKEN_LABEL, 'Scenario'),
+        (5, gherkin.TOKEN_TEXT, 'Scenario title'),
+        (5, gherkin.TOKEN_NEWLINE, '\n'),
+        (6, gherkin.TOKEN_TEXT, 'Given first step'),
+        (6, gherkin.TOKEN_NEWLINE, '\n'),
+        (7, gherkin.TOKEN_LABEL, 'Scenario'),
+        (7, gherkin.TOKEN_TEXT, 'Another scenario'),
+        (7, gherkin.TOKEN_NEWLINE, '\n'),
+        (8, gherkin.TOKEN_TEXT, 'Given this step'),
+        (8, gherkin.TOKEN_NEWLINE, '\n'),
+        (9, gherkin.TOKEN_TEXT, 'When we take another step'),
+        (9, gherkin.TOKEN_NEWLINE, '\n'),
+        (10, gherkin.TOKEN_EOF, ''),
     ])
 
     feature = parser.parse_feature()
 
     feature.should.equal(Ast.Feature(
-        title=Ast.Text('Feature title'),
-        description=Ast.Text('feature description'),
+        line=1,
+        title=Ast.Text(line=1, text='Feature title'),
+        description=Ast.Text(line=2, text='feature description'),
         background=Ast.Background(
-            title=Ast.Text('Some background'),
-            steps=[Ast.Step(Ast.Text('about the problem'))]),
+            line=3,
+            title=Ast.Text(line=3, text='Some background'),
+            steps=[Ast.Step(line=4, title=Ast.Text(line=4, text='Given the problem'))]),
         scenarios=[
-            Ast.Scenario(title=Ast.Text('Scenario title'),
-                         description=Ast.Text(''),
-                         steps=[Ast.Step(Ast.Text('Given first step'))]),
-            Ast.Scenario(title=Ast.Text('Another scenario'),
-                         description=Ast.Text(''),
-                         steps=[Ast.Step(Ast.Text('Given this step')),
-                                Ast.Step(Ast.Text('When we take another step'))]),
+            Ast.Scenario(line=5,
+                         title=Ast.Text(line=5, text='Scenario title'),
+                         steps=[Ast.Step(line=6, title=Ast.Text(line=6, text='Given first step'))]),
+            Ast.Scenario(line=7,
+                         title=Ast.Text(line=7, text='Another scenario'),
+                         steps=[Ast.Step(line=8, title=Ast.Text(line=8, text='Given this step')),
+                                Ast.Step(line=9, title=Ast.Text(line=9, text='When we take another step'))]),
         ],
     ))
 
@@ -875,8 +880,7 @@ def test_parse_tables_within_steps():
     "Lexer.run() Should be able to parse example tables from steps"
 
     # Given a parser loaded with steps that contain example tables
-    '''\
-	Feature: Check models existence
+    '''Feature: Check models existence
 		Background:
 	   Given I have a garden in the database:
 	      | @name  | area | raining |
@@ -891,69 +895,77 @@ def test_parse_tables_within_steps():
            Then I see it growing
     '''
     parser = Parser([
-        (gherkin.TOKEN_LABEL, 'Feature'),
-        (gherkin.TOKEN_TEXT, 'Check models existence'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_LABEL, 'Background'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_LABEL, 'Given I have a garden in the database'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TABLE_COLUMN, '@name'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'area'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'raining'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'Secret Garden'),
-        (gherkin.TOKEN_TABLE_COLUMN, '45'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'false'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_LABEL, 'And I have gardens in the database'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'name'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'area'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'raining'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TABLE_COLUMN, "Octopus' Garden"),
-        (gherkin.TOKEN_TABLE_COLUMN, '120'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'true'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_LABEL, 'Scenario'),
-        (gherkin.TOKEN_TEXT, 'Plant a tree'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'Given the <name> of a garden'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'When I plant a tree'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'And wait for <num_days> days'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'Then I see it growing'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_EOF, '')
+        (1, gherkin.TOKEN_LABEL, 'Feature'),
+        (1, gherkin.TOKEN_TEXT, 'Check models existence'),
+        (1, gherkin.TOKEN_NEWLINE, '\n'),
+        (2, gherkin.TOKEN_LABEL, 'Background'),
+        (2, gherkin.TOKEN_NEWLINE, '\n'),
+        (3, gherkin.TOKEN_LABEL, 'Given I have a garden in the database'),
+        (3, gherkin.TOKEN_NEWLINE, '\n'),
+        (4, gherkin.TOKEN_TABLE_COLUMN, '@name'),
+        (4, gherkin.TOKEN_TABLE_COLUMN, 'area'),
+        (4, gherkin.TOKEN_TABLE_COLUMN, 'raining'),
+        (4, gherkin.TOKEN_NEWLINE, '\n'),
+        (5, gherkin.TOKEN_TABLE_COLUMN, 'Secret Garden'),
+        (5, gherkin.TOKEN_TABLE_COLUMN, '45'),
+        (5, gherkin.TOKEN_TABLE_COLUMN, 'false'),
+        (5, gherkin.TOKEN_NEWLINE, '\n'),
+        (6, gherkin.TOKEN_LABEL, 'And I have gardens in the database'),
+        (6, gherkin.TOKEN_NEWLINE, '\n'),
+        (7, gherkin.TOKEN_TABLE_COLUMN, 'name'),
+        (7, gherkin.TOKEN_TABLE_COLUMN, 'area'),
+        (7, gherkin.TOKEN_TABLE_COLUMN, 'raining'),
+        (7, gherkin.TOKEN_NEWLINE, '\n'),
+        (8, gherkin.TOKEN_TABLE_COLUMN, "Octopus' Garden"),
+        (8, gherkin.TOKEN_TABLE_COLUMN, '120'),
+        (8, gherkin.TOKEN_TABLE_COLUMN, 'true'),
+        (8, gherkin.TOKEN_NEWLINE, '\n'),
+        (9, gherkin.TOKEN_LABEL, 'Scenario'),
+        (9, gherkin.TOKEN_TEXT, 'Plant a tree'),
+        (9, gherkin.TOKEN_NEWLINE, '\n'),
+        (10, gherkin.TOKEN_TEXT, 'Given the <name> of a garden'),
+        (10, gherkin.TOKEN_NEWLINE, '\n'),
+        (11, gherkin.TOKEN_TEXT, 'When I plant a tree'),
+        (11, gherkin.TOKEN_NEWLINE, '\n'),
+        (12, gherkin.TOKEN_TEXT, 'And wait for <num_days> days'),
+        (12, gherkin.TOKEN_NEWLINE, '\n'),
+        (13, gherkin.TOKEN_TEXT, 'Then I see it growing'),
+        (13, gherkin.TOKEN_NEWLINE, '\n'),
+        (14, gherkin.TOKEN_EOF, '')
     ])
 
     feature = parser.parse_feature()
 
     feature.should.equal(Ast.Feature(
-        title=Ast.Text('Check models existence'),
-        description=Ast.Text(""),
+        line=1,
+        title=Ast.Text(line=1, text='Check models existence'),
         background=Ast.Background(
-            title=Ast.Text(""),
+            line=2,
             steps=[
-                Ast.Step(Ast.Text('Given I have a garden in the database'),
-                         Ast.Table([['@name', 'area', 'raining'],
-                                    ['Secret Garden', '45', 'false']])),
-                Ast.Step(Ast.Text('And I have gardens in the database'),
-                         Ast.Table([['name', 'area', 'raining'],
-                                    ['Octopus\' Garden', '120', 'true']])),
+                Ast.Step(
+                    line=3,
+                    title=Ast.Text(line=3, text='Given I have a garden in the database'),
+                    table=Ast.Table(line=4, fields=[
+                        ['@name', 'area', 'raining'],
+                        ['Secret Garden', '45', 'false']])),
+                Ast.Step(
+                    line=6,
+                    title=Ast.Text(line=6, text='And I have gardens in the database'),
+                    table=Ast.Table(line=7, fields=[
+                        ['name', 'area', 'raining'],
+                        ['Octopus\' Garden', '120', 'true']])),
             ]
         ),
         scenarios=[
-            Ast.Scenario(title=Ast.Text('Plant a tree'),
-                         description=Ast.Text(''),
-                         steps=[Ast.Step(Ast.Text('Given the <name> of a garden')),
-                                Ast.Step(Ast.Text('When I plant a tree')),
-                                Ast.Step(Ast.Text('And wait for <num_days> days')),
-                                Ast.Step(Ast.Text('Then I see it growing'))],
-                     )
+            Ast.Scenario(
+                title=Ast.Text(line=9, text='Plant a tree'),
+                line=9,
+                steps=[
+                    Ast.Step(line=10, title=Ast.Text(line=10, text='Given the <name> of a garden')),
+                    Ast.Step(line=11, title=Ast.Text(line=11, text='When I plant a tree')),
+                    Ast.Step(line=12, title=Ast.Text(line=12, text='And wait for <num_days> days')),
+                    Ast.Step(line=13, title=Ast.Text(line=13, text='Then I see it growing'))
+                ])
         ],
     ))
 
@@ -970,46 +982,48 @@ def test_parse_quoted_strings_on_steps():
     #       """Now notice we didn't use (:) above
     #       """
     parser = Parser([
-        (gherkin.TOKEN_LABEL, 'Given the following email template'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_QUOTES, "'''"),
-        (gherkin.TOKEN_TEXT, '''Here we go with a pretty
+        (1, gherkin.TOKEN_LABEL, 'Given the following email template'),
+        (1, gherkin.TOKEN_NEWLINE, '\n'),
+        (2, gherkin.TOKEN_QUOTES, "'''"),
+        (2, gherkin.TOKEN_TEXT, '''Here we go with a pretty
        big block of text
        surrounded by triple quoted strings
        '''),
-        (gherkin.TOKEN_QUOTES, "'''"),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'And a cat picture'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_QUOTES, '"""'),
-        (gherkin.TOKEN_TEXT, "Now notice we didn't use (:) above\n       "),
-        (gherkin.TOKEN_QUOTES, '"""'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_EOF, '')
+        (5, gherkin.TOKEN_QUOTES, "'''"),
+        (5, gherkin.TOKEN_NEWLINE, '\n'),
+        (6, gherkin.TOKEN_TEXT, 'And a cat picture'),
+        (6, gherkin.TOKEN_NEWLINE, '\n'),
+        (7, gherkin.TOKEN_QUOTES, '"""'),
+        (7, gherkin.TOKEN_TEXT, "Now notice we didn't use (:) above\n       "),
+        (8, gherkin.TOKEN_QUOTES, '"""'),
+        (8, gherkin.TOKEN_NEWLINE, '\n'),
+        (9, gherkin.TOKEN_EOF, '')
     ])
 
     steps = parser.parse_steps()
 
     steps.should.equal([
         Ast.Step(
-            title=Ast.Text('Given the following email template'),
-            text=Ast.Text('''Here we go with a pretty
+            line=1,
+            title=Ast.Text(line=1, text='Given the following email template'),
+            text=Ast.Text(line=2, text='''Here we go with a pretty
        big block of text
        surrounded by triple quoted strings
        ''')),
         Ast.Step(
-            title=Ast.Text('And a cat picture'),
-            text=Ast.Text("Now notice we didn't use (:) above\n       "))])
+            line=6,
+            title=Ast.Text(line=6, text='And a cat picture'),
+            text=Ast.Text(line=7, text="Now notice we didn't use (:) above\n       "))])
 
 
 def test_parse_text():
     parser = Parser([
-        (gherkin.TOKEN_TAG, 'tag1'),
-        (gherkin.TOKEN_TAG, 'tag2'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TAG, 'tag3'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_LABEL, 'Feature'),
+        (1, gherkin.TOKEN_TAG, 'tag1'),
+        (1, gherkin.TOKEN_TAG, 'tag2'),
+        (1, gherkin.TOKEN_NEWLINE, '\n'),
+        (2, gherkin.TOKEN_TAG, 'tag3'),
+        (2, gherkin.TOKEN_NEWLINE, '\n'),
+        (3, gherkin.TOKEN_LABEL, 'Feature'),
     ])
 
     tags = parser.parse_tags()
@@ -1032,26 +1046,26 @@ def test_parse_tags_on_scenario_outline_examples():
     #     | Header |
 
     parser = Parser([
-        (gherkin.TOKEN_TAG, 'tagged-feature'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_LABEL, 'Feature'),
-        (gherkin.TOKEN_TEXT, 'Parse tags'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TAG, 'tag1'),
-        (gherkin.TOKEN_TAG, 'tag2'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_LABEL, 'Scenario Outline'),
-        (gherkin.TOKEN_TEXT, 'Test'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TAG, 'example-tag1'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TAG, 'example-tag2'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_LABEL, 'Examples'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TABLE_COLUMN, 'Header'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_EOF, ''),
+        (1, gherkin.TOKEN_TAG, 'tagged-feature'),
+        (1, gherkin.TOKEN_NEWLINE, '\n'),
+        (2, gherkin.TOKEN_LABEL, 'Feature'),
+        (2, gherkin.TOKEN_TEXT, 'Parse tags'),
+        (2, gherkin.TOKEN_NEWLINE, '\n'),
+        (3, gherkin.TOKEN_TAG, 'tag1'),
+        (3, gherkin.TOKEN_TAG, 'tag2'),
+        (3, gherkin.TOKEN_NEWLINE, '\n'),
+        (4, gherkin.TOKEN_LABEL, 'Scenario Outline'),
+        (4, gherkin.TOKEN_TEXT, 'Test'),
+        (4, gherkin.TOKEN_NEWLINE, '\n'),
+        (5, gherkin.TOKEN_TAG, 'example-tag1'),
+        (5, gherkin.TOKEN_NEWLINE, '\n'),
+        (6, gherkin.TOKEN_TAG, 'example-tag2'),
+        (6, gherkin.TOKEN_NEWLINE, '\n'),
+        (7, gherkin.TOKEN_LABEL, 'Examples'),
+        (7, gherkin.TOKEN_NEWLINE, '\n'),
+        (8, gherkin.TOKEN_TABLE_COLUMN, 'Header'),
+        (8, gherkin.TOKEN_NEWLINE, '\n'),
+        (9, gherkin.TOKEN_EOF, ''),
     ])
 
     # When I parse the document
@@ -1059,16 +1073,17 @@ def test_parse_tags_on_scenario_outline_examples():
 
     # Then I see all the tags were found
     feature.should.equal(Ast.Feature(
-        title=Ast.Text('Parse tags'),
+        line=2,
+        title=Ast.Text(line=2, text='Parse tags'),
         tags=['tagged-feature'],
-        description=Ast.Text(""),
         scenarios=[Ast.ScenarioOutline(
-            title=Ast.Text('Test'),
-            description=Ast.Text(""),
+            line=4,
+            title=Ast.Text(line=4, text='Test'),
             tags=['tag1', 'tag2'],
             examples=Ast.Examples(
+                line=7,
                 tags=['example-tag1', 'example-tag2'],
-                table=Ast.Table(fields=[['Header']])),
+                table=Ast.Table(line=8, fields=[['Header']])),
         )]))
 
 
@@ -1083,30 +1098,30 @@ def test_parse_tags_on_feature_and_scenario():
     #   @tag1 @tag2
     #   Scenario: Test
     parser = Parser([
-        (gherkin.TOKEN_TAG, 'tagged-feature'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_LABEL, 'Feature'),
-        (gherkin.TOKEN_TEXT, 'Parse tags'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TAG, 'tag1'),
-        (gherkin.TOKEN_TAG, 'tag2'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_LABEL, 'Scenario'),
-        (gherkin.TOKEN_TEXT, 'Test'),
-        (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_EOF, ''),
+        (1, gherkin.TOKEN_TAG, 'tagged-feature'),
+        (1, gherkin.TOKEN_NEWLINE, '\n'),
+        (2, gherkin.TOKEN_LABEL, 'Feature'),
+        (2, gherkin.TOKEN_TEXT, 'Parse tags'),
+        (2, gherkin.TOKEN_NEWLINE, '\n'),
+        (3, gherkin.TOKEN_NEWLINE, '\n'),
+        (4, gherkin.TOKEN_TAG, 'tag1'),
+        (4, gherkin.TOKEN_TAG, 'tag2'),
+        (4, gherkin.TOKEN_NEWLINE, '\n'),
+        (5, gherkin.TOKEN_LABEL, 'Scenario'),
+        (5, gherkin.TOKEN_TEXT, 'Test'),
+        (6, gherkin.TOKEN_NEWLINE, '\n'),
+        (7, gherkin.TOKEN_EOF, ''),
     ])
 
     feature = parser.parse_feature()
 
     feature.should.equal(Ast.Feature(
-        title=Ast.Text('Parse tags'),
+        line=2,
+        title=Ast.Text(line=2, text='Parse tags'),
         tags=['tagged-feature'],
-        description=Ast.Text(""),
         scenarios=[Ast.Scenario(
-            title=Ast.Text('Test'),
-            description=Ast.Text(""),
+            line=5,
+            title=Ast.Text(line=5, text='Test'),
             tags=['tag1', 'tag2'])]))
 
 
