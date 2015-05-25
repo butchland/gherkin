@@ -385,33 +385,29 @@ class Parser(BaseParser):
 
 
 class Ast(object):
+
     class Node(object):
         def __eq__(self, other):
             return getattr(other, '__dict__', None) == self.__dict__
+
+        def __repr__(self):
+            return '{}({})'.format(
+                self.__class__.__name__,
+                ', '.join('{}={}'.format(*x) for x in self.__dict__.items()))
 
     class Metadata(Node):
         def __init__(self, key, value):
             self.key = key
             self.value = value
 
-        def __repr__(self):
-            return 'Metadata(key="{}", value="{}")'.format(self.key, self.value)
-
     class Text(Node):
         def __init__(self, text):
             self.text = text
-
-        def __repr__(self):
-            return 'Text("{}")'.format(self.text)
 
     class Background(Node):
         def __init__(self, title=None, steps=None):
             self.title = title
             self.steps = steps or []
-
-        def __repr__(self):
-            return 'Background(title={}, steps={})'.format(
-                self.title, self.steps)
 
     class Feature(Node):
         def __init__(self, title=None, tags=None, description=None, background=None, scenarios=None):
@@ -421,10 +417,6 @@ class Ast(object):
             self.background = background
             self.scenarios = scenarios or []
 
-        def __repr__(self):
-            return 'Feature(title={}, tags={}, description={}, background={}, scenarios={})'.format(
-                self.title, self.tags, self.description, self.background, self.scenarios)
-
     class Scenario(Node):
         def __init__(self, title=None, tags=None, description=None, steps=None, examples=None):
             self.title = title
@@ -433,30 +425,16 @@ class Ast(object):
             self.steps = steps or []
             self.examples = examples
 
-        def __repr__(self):
-            return 'Scenario(title={}, description={}, steps={}, examples={})'.format(
-                self.title, self.description, self.steps, self.examples)
-
     class Step(Node):
         def __init__(self, title, table=None, text=None):
             self.title = title
             self.table = table
             self.text = text
 
-        def __repr__(self):
-            return 'Step(title={}, table={}, text={})'.format(
-                self.title, self.table, self.text)
-
     class Table(Node):
         def __init__(self, fields):
             self.fields = fields
 
-        def __repr__(self):
-            return 'Table(fields={})'.format(self.fields)
-
     class Examples(Node):
         def __init__(self, table=None):
             self.table = table
-
-        def __repr__(self):
-            return 'Examples(table={})'.format(self.table)
