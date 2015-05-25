@@ -30,6 +30,7 @@ LANGUAGES = {
         'scenario_outline': 'Scenario Outline',
         'scenario_separator': '(Scenario Outline|Scenario)',
         'background': '(?:Background)',
+        'given': 'Given',
     },
     'pt-br': {
         'examples': 'Exemplos|Cenários',

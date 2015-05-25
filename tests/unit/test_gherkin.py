@@ -627,6 +627,12 @@ def test_parse_table():
 
 def test_parse_background():
 
+    # Background: title
+    #  Given two users in the database:
+    #    | name | email |
+    #    | Lincoln | lincoln@clarete.li |
+    #    | Gabriel | gabriel@nacaolivre.org |
+    # Scenario:
     parser = Parser([
         (gherkin.TOKEN_LABEL, 'Background'),
         (gherkin.TOKEN_TEXT, 'title'),
@@ -645,8 +651,12 @@ def test_parse_background():
         (gherkin.TOKEN_LABEL, 'Scenario'),
     ])
 
+    # When the background is parsed
     feature = parser.parse_background()
 
+    # Then I see the output contains a valid background with a step
+    # with examples. Notice the scenario label is not returned
+    # anywhere here
     feature.should.equal(Ast.Background(
         title=Ast.Text('title'),
         steps=[
@@ -660,7 +670,10 @@ def test_parse_background():
         ]))
 
 
-def teste_parse_scenarios():
+## Scenarios
+
+
+def teste_parse_scenario():
 
     parser = Parser([
         (gherkin.TOKEN_LABEL, 'Scenario'),
@@ -673,28 +686,48 @@ def teste_parse_scenarios():
 
     feature.should.equal([Ast.Scenario(
         title=Ast.Text('Scenario title'),
+        description=Ast.Text(text=''),
         steps=[Ast.Step(Ast.Text('Given first step'))],
     )])
 
 
-def test_parse_scenario_with_examples():
-    ""
-
-    # Given a parser loaded with the following gherkin document
-    ''' \
-     Scenario: Plant a tree
-       Given the <name> of a garden
-       When I plant a tree
-        And wait for <num_days> days
-       Then I see it growing
-     Examples:
-       | name | num_days |
-       | Secret | 2 |
-       | Octopus | 5 |
-    '''
+def teste_parse_scenario_with_description():
 
     parser = Parser([
         (gherkin.TOKEN_LABEL, 'Scenario'),
+        (gherkin.TOKEN_TEXT, 'Scenario title'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_TEXT, 'Scenario description'),
+        (gherkin.TOKEN_TEXT, 'More description'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_TEXT, 'Given first step'),
+    ])
+
+    feature = parser.parse_scenarios()
+
+    feature.should.equal([Ast.Scenario(
+        title=Ast.Text('Scenario title'),
+        description=Ast.Text('Scenario description More description'),
+        steps=[Ast.Step(Ast.Text('Given first step'))],
+    )])
+
+
+def test_parse_scenario_outline_with_examples():
+    ""
+
+    # Given a parser loaded with the following gherkin document:
+    #
+    #     Scenario Outline: Plant a tree
+    #       Given the <name> of a garden
+    #       When I plant a tree
+    #        And wait for <num_days> days
+    #       Then I see it growing
+    #     Examples:
+    #       | name | num_days |
+    #       | Secret | 2 |
+    #       | Octopus | 5 |
+    parser = Parser([
+        (gherkin.TOKEN_LABEL, 'Scenario Outline'),
         (gherkin.TOKEN_TEXT, 'Plant a tree'),
         (gherkin.TOKEN_NEWLINE, '\n'),
         (gherkin.TOKEN_TEXT, 'Given the <name> of a garden'),
@@ -722,8 +755,9 @@ def test_parse_scenario_with_examples():
     scenarios = parser.parse_scenarios()
 
     scenarios.should.equal([
-        Ast.Scenario(
+        Ast.ScenarioOutline(
             title=Ast.Text('Plant a tree'),
+            description=Ast.Text(''),
             steps=[Ast.Step(Ast.Text('Given the <name> of a garden')),
                    Ast.Step(Ast.Text('When I plant a tree')),
                    Ast.Step(Ast.Text('And wait for <num_days> days')),
@@ -767,7 +801,8 @@ Feature: Feature title
     ''').run())
 
     parser.parse_feature.when.called.should.throw(
-        SyntaxError, "`Background' should not be declared here, Scenario expected")
+        SyntaxError,
+        "`Background' should not be declared here, Scenario or Scenario Outline expected")
 
 
 def test_parse_feature_background_wrong_place():
@@ -784,7 +819,8 @@ Feature: Feature title
     ''').run())
 
     parser.parse_feature.when.called.should.throw(
-        SyntaxError, "`Background' should not be declared here, Scenario expected")
+        SyntaxError,
+        "`Background' should not be declared here, Scenario or Scenario Outline expected")
 
 
 def test_parse_feature():
@@ -825,8 +861,10 @@ def test_parse_feature():
             steps=[Ast.Step(Ast.Text('about the problem'))]),
         scenarios=[
             Ast.Scenario(title=Ast.Text('Scenario title'),
+                         description=Ast.Text(''),
                          steps=[Ast.Step(Ast.Text('Given first step'))]),
             Ast.Scenario(title=Ast.Text('Another scenario'),
+                         description=Ast.Text(''),
                          steps=[Ast.Step(Ast.Text('Given this step')),
                                 Ast.Step(Ast.Text('When we take another step'))]),
         ],
@@ -910,6 +948,7 @@ def test_parse_tables_within_steps():
         ),
         scenarios=[
             Ast.Scenario(title=Ast.Text('Plant a tree'),
+                         description=Ast.Text(''),
                          steps=[Ast.Step(Ast.Text('Given the <name> of a garden')),
                                 Ast.Step(Ast.Text('When I plant a tree')),
                                 Ast.Step(Ast.Text('And wait for <num_days> days')),
@@ -978,6 +1017,61 @@ def test_parse_text():
     tags.should.equal(['tag1', 'tag2', 'tag3'])
 
 
+def test_parse_tags_on_scenario_outline_examples():
+    "Parser should allow tags to be defined in examples"
+
+    # Given a parser loaded with a document that contains tags on
+    # scenario outline examples
+    #   @tagged-feature
+    #   Feature: Parse tags
+    #   @tag1 @tag2
+    #   Scenario Outline: Test
+    #   @example-tag1
+    #   @example-tag2
+    #   Examples:
+    #     | Header |
+
+    parser = Parser([
+        (gherkin.TOKEN_TAG, 'tagged-feature'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_LABEL, 'Feature'),
+        (gherkin.TOKEN_TEXT, 'Parse tags'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_TAG, 'tag1'),
+        (gherkin.TOKEN_TAG, 'tag2'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_LABEL, 'Scenario Outline'),
+        (gherkin.TOKEN_TEXT, 'Test'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_TAG, 'example-tag1'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_TAG, 'example-tag2'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_LABEL, 'Examples'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_TABLE_COLUMN, 'Header'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_EOF, ''),
+    ])
+
+    # When I parse the document
+    feature = parser.parse_feature()
+
+    # Then I see all the tags were found
+    feature.should.equal(Ast.Feature(
+        title=Ast.Text('Parse tags'),
+        tags=['tagged-feature'],
+        description=Ast.Text(""),
+        scenarios=[Ast.ScenarioOutline(
+            title=Ast.Text('Test'),
+            description=Ast.Text(""),
+            tags=['tag1', 'tag2'],
+            examples=Ast.Examples(
+                tags=['example-tag1', 'example-tag2'],
+                table=Ast.Table(fields=[['Header']])),
+        )]))
+
+
 def test_parse_tags_on_feature_and_scenario():
 
     # Given a parser loaded with a gherkin document with one tag on
@@ -1012,7 +1106,9 @@ def test_parse_tags_on_feature_and_scenario():
         description=Ast.Text(""),
         scenarios=[Ast.Scenario(
             title=Ast.Text('Test'),
+            description=Ast.Text(""),
             tags=['tag1', 'tag2'])]))
+
 
 def test_ast_node_equal():
 

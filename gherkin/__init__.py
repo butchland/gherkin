@@ -217,8 +217,11 @@ class Parser(BaseParser):
         return self.languages[self.language][type_].match(label)
 
     def eat_newlines(self):
+        count = 0
         while self.accept([(TOKEN_NEWLINE, '\n')]):
             self.ignore()
+            count += 1
+        return count
 
     def next_(self):
         "Same as BaseParser.next_() but returns (None, None) instead of None on EOF"
@@ -238,10 +241,13 @@ class Parser(BaseParser):
         description = []
         while True:
             token, value = self.next_()
-            if token == TOKEN_NEWLINE:
-                continue
+            if self.match_label('given', value):
+                self.backup()
+                break
             elif token == TOKEN_TEXT:
                 description.append(value)
+            elif token == TOKEN_NEWLINE:
+                self.ignore()
             else:
                 self.backup()
                 break
@@ -269,19 +275,13 @@ class Parser(BaseParser):
         steps = []
         while True:
             token, value = self.next_()
-            if token == TOKEN_LABEL and self.match_label('examples', value):
-                # Special case, label `Examples' is not a step. Let's
-                # backup here and let parse_scenarios() deal with that
-                self.backup()
-                return steps
-
-            self.eat_newlines()
+            backup = self.eat_newlines()
             next_token = self.peek()[0]
-
             if token == TOKEN_NEWLINE:
                 self.ignore()
             elif (token in (TOKEN_LABEL, TOKEN_TEXT) and
-                  next_token == TOKEN_TABLE_COLUMN):
+                  next_token == TOKEN_TABLE_COLUMN and not
+                  self.match_label('examples', value)):
                 steps.append(Ast.Step(
                     title=Ast.Text(value),
                     table=self.parse_table()))
@@ -293,7 +293,7 @@ class Parser(BaseParser):
             elif token == TOKEN_TEXT:
                 steps.append(Ast.Step(title=Ast.Text(value)))
             else:
-                self.backup()
+                self.backup(backup + 1)
                 break
         return steps
 
@@ -314,30 +314,38 @@ class Parser(BaseParser):
 
     def parse_examples(self):
         self.eat_newlines()
+        tags = self.parse_tags()
         token, value = self.next_()
-        if token == TOKEN_LABEL and self.match_label('examples', value):
-            self.eat_newlines()
-            return Ast.Examples(table=self.parse_table())
-        self.backup()
+        assert token == TOKEN_LABEL and self.match_label('examples', value)
+        self.eat_newlines()
+        return Ast.Examples(tags=tags, table=self.parse_table())
 
     def parse_scenarios(self):
         scenarios = []
         while True:
             self.eat_newlines()
-            scenario = Ast.Scenario()
-            scenario.tags = self.parse_tags()
+            tags = self.parse_tags()
 
             token, value = self.next_()
             if token in (None, TOKEN_EOF):
                 break  # EOF
-            elif not self.match_label('scenario', value):
+            elif self.match_label('scenario_outline', value):
+                scenario = Ast.ScenarioOutline()
+                scenario.tags = tags
+                scenario.title = self.parse_title()
+                scenario.description = self.parse_description()
+                scenario.steps = self.parse_steps()
+                scenario.examples = self.parse_examples()
+            elif self.match_label('scenario', value):
+                scenario = Ast.Scenario()
+                scenario.tags = tags
+                scenario.title = self.parse_title()
+                scenario.description = self.parse_description()
+                scenario.steps = self.parse_steps()
+            else:
                 raise SyntaxError(
                     ('`{}\' should not be declared here, '
-                     'Scenario expected').format(value))
-
-            scenario.title = self.parse_title()
-            scenario.steps = self.parse_steps()
-            scenario.examples = self.parse_examples()
+                     'Scenario or Scenario Outline expected').format(value))
             scenarios.append(scenario)
         return scenarios
 
@@ -391,9 +399,9 @@ class Ast(object):
             return getattr(other, '__dict__', None) == self.__dict__
 
         def __repr__(self):
-            return '{}({})'.format(
-                self.__class__.__name__,
-                ', '.join('{}={}'.format(*x) for x in self.__dict__.items()))
+            fields = ['{}={}'.format(x[0], repr(x[1]))
+                      for x in self.__dict__.items()]
+            return '{}({})'.format(self.__class__.__name__, ', '.join(fields))
 
     class Metadata(Node):
         def __init__(self, key, value):
@@ -418,6 +426,13 @@ class Ast(object):
             self.scenarios = scenarios or []
 
     class Scenario(Node):
+        def __init__(self, title=None, tags=None, description=None, steps=None):
+            self.title = title
+            self.tags = tags or []
+            self.description = description
+            self.steps = steps or []
+
+    class ScenarioOutline(Node):
         def __init__(self, title=None, tags=None, description=None, steps=None, examples=None):
             self.title = title
             self.tags = tags or []
@@ -436,5 +451,6 @@ class Ast(object):
             self.fields = fields
 
     class Examples(Node):
-        def __init__(self, table=None):
+        def __init__(self, tags=None, table=None):
+            self.tags = tags or []
             self.table = table
