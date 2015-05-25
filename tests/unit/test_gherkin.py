@@ -490,6 +490,51 @@ def test_lex_multi_line_str():
         (gherkin.TOKEN_EOF, '')
     ])
 
+def test_lex_tags_empty():
+    "Lexer.lex_tag() Should bail if we reach EOF"
+
+    # Given a lexer loaded with an empty string
+    lexer = gherkin.Lexer('')
+
+    # When we try to lex tags
+    lexer.lex_tag()
+
+    # Then we see we found no tokens
+    lexer.tokens.should.be.empty
+
+
+def test_lex_tags():
+    "Lexer.run() Should be able to find tags"
+
+    # Given a lexer loaded with steps that contain example tables
+    lexer = gherkin.Lexer('''\
+    @tagged-feature
+    Feature: Parse tags
+
+    @tag1 @tag2
+    Scenario: Test
+    ''')
+
+    # When we run the lexer
+    tokens = lexer.run()
+
+    # Then we see that triple quoted strings are captured by the lexer
+    tokens.should.equal([
+        (gherkin.TOKEN_TAG, 'tagged-feature'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_LABEL, 'Feature'),
+        (gherkin.TOKEN_TEXT, 'Parse tags'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_TAG, 'tag1'),
+        (gherkin.TOKEN_TAG, 'tag2'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_LABEL, 'Scenario'),
+        (gherkin.TOKEN_TEXT, 'Test'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_EOF, ''),
+    ])
+
 
 def test_parse_metadata_empty():
 
@@ -789,7 +834,7 @@ def test_parse_feature():
 
 
 def test_parse_tables_within_steps():
-    "Lexer.run() Should be able to lex example tables from steps"
+    "Lexer.run() Should be able to parse example tables from steps"
 
     # Given a parser loaded with steps that contain example tables
     '''\
@@ -917,6 +962,57 @@ def test_parse_quoted_strings_on_steps():
             title=Ast.Text('And a cat picture'),
             text=Ast.Text("Now notice we didn't use (:) above\n       "))])
 
+
+def test_parse_text():
+    parser = Parser([
+        (gherkin.TOKEN_TAG, 'tag1'),
+        (gherkin.TOKEN_TAG, 'tag2'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_TAG, 'tag3'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_LABEL, 'Feature'),
+    ])
+
+    tags = parser.parse_tags()
+
+    tags.should.equal(['tag1', 'tag2', 'tag3'])
+
+
+def test_parse_tags_on_feature_and_scenario():
+
+    # Given a parser loaded with a gherkin document with one tag on
+    # the feature and two tags on a scenario:
+    #
+    #   @tagged-feature
+    #   Feature: Parse tags
+    #
+    #   @tag1 @tag2
+    #   Scenario: Test
+    parser = Parser([
+        (gherkin.TOKEN_TAG, 'tagged-feature'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_LABEL, 'Feature'),
+        (gherkin.TOKEN_TEXT, 'Parse tags'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_TAG, 'tag1'),
+        (gherkin.TOKEN_TAG, 'tag2'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_LABEL, 'Scenario'),
+        (gherkin.TOKEN_TEXT, 'Test'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_EOF, ''),
+    ])
+
+    feature = parser.parse_feature()
+
+    feature.should.equal(Ast.Feature(
+        title=Ast.Text('Parse tags'),
+        tags=['tagged-feature'],
+        description=Ast.Text(""),
+        scenarios=[Ast.Scenario(
+            title=Ast.Text('Test'),
+            tags=['tag1', 'tag2'])]))
 
 def test_ast_node_equal():
 

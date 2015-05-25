@@ -14,7 +14,8 @@ import re
     TOKEN_LABEL,                # 6
     TOKEN_TABLE_COLUMN,         # 7
     TOKEN_QUOTES,               # 8
-) = range(9)
+    TOKEN_TAG,                  # 9
+) = range(10)
 
 
 def compiled_languages():
@@ -153,6 +154,17 @@ class Lexer(BaseParser):
                 break
         return self.lex_text
 
+    def lex_tag(self):
+        while True:
+            cursor = self.next_()
+            if cursor is None: # EOF
+                break
+            elif cursor in (' ', '\n'):
+                self.backup()
+                break
+        self.emit_s(TOKEN_TAG)
+        return self.lex_text
+
     def lex_text(self):
         self.eat_whitespaces()
         while True:
@@ -173,6 +185,9 @@ class Lexer(BaseParser):
             elif cursor == '|':
                 self.ignore()
                 return self.lex_field
+            elif cursor == '@':
+                self.ignore()
+                return self.lex_tag
             elif cursor == '\n':
                 self.backup()
                 self.emit_s(TOKEN_TEXT)
@@ -309,6 +324,9 @@ class Parser(BaseParser):
         scenarios = []
         while True:
             self.eat_newlines()
+            scenario = Ast.Scenario()
+            scenario.tags = self.parse_tags()
+
             token, value = self.next_()
             if token in (None, TOKEN_EOF):
                 break  # EOF
@@ -316,24 +334,41 @@ class Parser(BaseParser):
                 raise SyntaxError(
                     ('`{}\' should not be declared here, '
                      'Scenario expected').format(value))
-            scenarios.append(Ast.Scenario(
-                title=self.parse_title(),
-                steps=self.parse_steps(),
-                examples=self.parse_examples()))
+
+            scenario.title = self.parse_title()
+            scenario.steps = self.parse_steps()
+            scenario.examples = self.parse_examples()
+            scenarios.append(scenario)
         return scenarios
 
+    def parse_tags(self):
+        tags = []
+        while True:
+            token, value = self.next_()
+            if token == TOKEN_TAG:
+                tags.append(value)
+            elif token == TOKEN_NEWLINE:
+                self.ignore()
+            else:
+                self.backup()
+                break
+        return tags
+
     def parse_feature(self):
-        self.eat_newlines()
+        feature = Ast.Feature()
+        feature.tags = self.parse_tags()
+
         _, label = self.next_()
         if not self.match_label('feature', label):
             raise SyntaxError(
                 'Feature expected in the beginning of the file, '
                 'found `{}\' though.'.format(label))
-        return Ast.Feature(
-            title=self.parse_title(),
-            description=self.parse_description(),
-            background=self.parse_background(),
-            scenarios=self.parse_scenarios())
+
+        feature.title = self.parse_title()
+        feature.description = self.parse_description()
+        feature.background = self.parse_background()
+        feature.scenarios = self.parse_scenarios()
+        return feature
 
     def parse_metadata(self):
         token, key = self.next_()
@@ -379,19 +414,21 @@ class Ast(object):
                 self.title, self.steps)
 
     class Feature(Node):
-        def __init__(self, title, description=None, background=None, scenarios=None):
+        def __init__(self, title=None, tags=None, description=None, background=None, scenarios=None):
             self.title = title
+            self.tags = tags or []
             self.description = description
             self.background = background
             self.scenarios = scenarios or []
 
         def __repr__(self):
-            return 'Feature(title={}, description={}, background={}, scenarios={})'.format(
-                self.title, self.description, self.background, self.scenarios)
+            return 'Feature(title={}, tags={}, description={}, background={}, scenarios={})'.format(
+                self.title, self.tags, self.description, self.background, self.scenarios)
 
     class Scenario(Node):
-        def __init__(self, title, description=None, steps=None, examples=None):
+        def __init__(self, title=None, tags=None, description=None, steps=None, examples=None):
             self.title = title
+            self.tags = tags or []
             self.description = description
             self.steps = steps or []
             self.examples = examples
