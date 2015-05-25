@@ -359,7 +359,7 @@ def test_lex_tables_full():
   Feature: gherkin has steps with examples
   Scenario Outline: Add two numbers
     Given I have <input_1> and <input_2> the calculator
-    When I press Sum!
+    When I press "Sum"!
     Then the result should be <output> on the screen
   Examples:
     | input_1 | input_2 | output |
@@ -380,7 +380,7 @@ def test_lex_tables_full():
         (gherkin.TOKEN_NEWLINE, '\n'),
         (gherkin.TOKEN_TEXT, 'Given I have <input_1> and <input_2> the calculator'),
         (gherkin.TOKEN_NEWLINE, '\n'),
-        (gherkin.TOKEN_TEXT, 'When I press Sum!'),
+        (gherkin.TOKEN_TEXT, 'When I press "Sum"!'),
         (gherkin.TOKEN_NEWLINE, '\n'),
         (gherkin.TOKEN_TEXT, 'Then the result should be <output> on the screen'),
         (gherkin.TOKEN_NEWLINE, '\n'),
@@ -447,6 +447,45 @@ def test_lex_tables_within_steps():
         (gherkin.TOKEN_TABLE_COLUMN, 'Octopus\' Garden'),
         (gherkin.TOKEN_TABLE_COLUMN, '120'),
         (gherkin.TOKEN_TABLE_COLUMN, 'true'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_EOF, '')
+    ])
+
+
+def test_lex_multi_line_str():
+    "Lexer.run() Should be able to find multi quoted strings after labels"
+
+    # Given a lexer loaded with steps that contain example tables
+    lexer = gherkin.Lexer('''\
+    Given the following email template:
+       ''\'Here we go with a pretty
+       big block of text
+       surrounded by triple quoted strings
+       ''\'
+    And a cat picture
+       """Now notice we didn't use (:) above
+       """
+    ''')
+
+    # When we run the lexer
+    tokens = lexer.run()
+
+    # Then we see that triple quoted strings are captured by the lexer
+    tokens.should.equal([
+        (gherkin.TOKEN_LABEL, 'Given the following email template'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_QUOTES, "'''"),
+        (gherkin.TOKEN_TEXT, '''Here we go with a pretty
+       big block of text
+       surrounded by triple quoted strings
+       '''),
+        (gherkin.TOKEN_QUOTES, "'''"),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_TEXT, 'And a cat picture'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_QUOTES, '"""'),
+        (gherkin.TOKEN_TEXT, "Now notice we didn't use (:) above\n       "),
+        (gherkin.TOKEN_QUOTES, '"""'),
         (gherkin.TOKEN_NEWLINE, '\n'),
         (gherkin.TOKEN_EOF, '')
     ])
@@ -833,6 +872,50 @@ def test_parse_tables_within_steps():
                      )
         ],
     ))
+
+
+def test_parse_quoted_strings_on_steps():
+
+    # Given a parser loaded with the following Gherkin document
+    #    Given the following email template:
+    #       '''Here we go with a pretty
+    #       big block of text
+    #       surrounded by triple quoted strings
+    #       '''
+    #    And a cat picture
+    #       """Now notice we didn't use (:) above
+    #       """
+    parser = Parser([
+        (gherkin.TOKEN_LABEL, 'Given the following email template'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_QUOTES, "'''"),
+        (gherkin.TOKEN_TEXT, '''Here we go with a pretty
+       big block of text
+       surrounded by triple quoted strings
+       '''),
+        (gherkin.TOKEN_QUOTES, "'''"),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_TEXT, 'And a cat picture'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_QUOTES, '"""'),
+        (gherkin.TOKEN_TEXT, "Now notice we didn't use (:) above\n       "),
+        (gherkin.TOKEN_QUOTES, '"""'),
+        (gherkin.TOKEN_NEWLINE, '\n'),
+        (gherkin.TOKEN_EOF, '')
+    ])
+
+    steps = parser.parse_steps()
+
+    steps.should.equal([
+        Ast.Step(
+            title=Ast.Text('Given the following email template'),
+            text=Ast.Text('''Here we go with a pretty
+       big block of text
+       surrounded by triple quoted strings
+       ''')),
+        Ast.Step(
+            title=Ast.Text('And a cat picture'),
+            text=Ast.Text("Now notice we didn't use (:) above\n       "))])
 
 
 def test_ast_node_equal():

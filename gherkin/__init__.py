@@ -13,7 +13,8 @@ import re
     TOKEN_META_VALUE,           # 5
     TOKEN_LABEL,                # 6
     TOKEN_TABLE_COLUMN,         # 7
-) = range(8)
+    TOKEN_QUOTES,               # 8
+) = range(9)
 
 
 def compiled_languages():
@@ -89,6 +90,12 @@ class Lexer(BaseParser):
         while self.accept([' ', '\t']):
             self.ignore()
 
+    def match_quotes(self, cursor):
+        stream_at_cursor = self.stream[self.position:]
+        return cursor in ('"', "'") and (
+                stream_at_cursor.startswith('""') or
+                stream_at_cursor.startswith("''"))
+
     def lex_field(self):
         self.eat_whitespaces()
         while True:
@@ -103,36 +110,6 @@ class Lexer(BaseParser):
                 self.emit_s(TOKEN_TABLE_COLUMN, strip=True)
                 return self.lex_text
         return self.lex_text
-
-    def lex_text(self):
-        self.eat_whitespaces()
-        while True:
-            cursor = self.next_()
-            if cursor is None: # EOF
-                break
-            elif cursor == ':':
-                self.backup()   # ignore :
-                self.emit_s(TOKEN_LABEL)
-                self.next_()
-                self.ignore()
-                return self.lex_text
-            elif cursor == '#':
-                self.backup()
-                self.emit_s(TOKEN_TEXT)
-                self.next_()
-                return self.lex_comment
-            elif cursor == '|':
-                self.ignore()
-                return self.lex_field
-            elif cursor == '\n':
-                self.backup()
-                self.emit_s(TOKEN_TEXT)
-                self.next_()
-                self.emit_s(TOKEN_NEWLINE)
-                return self.lex_text
-        self.emit_s(TOKEN_TEXT)
-        self.emit(TOKEN_EOF)
-        return None
 
     def lex_comment(self):
         self.eat_whitespaces()
@@ -161,6 +138,55 @@ class Lexer(BaseParser):
                 self.emit_s(TOKEN_META_VALUE)
                 return self.lex_text
 
+    def lex_quotes(self):
+        while True:
+            cursor = self.next_()
+            if self.match_quotes(cursor):
+                # Consume all the text inside of the quotes
+                self.backup()
+                self.emit_s(TOKEN_TEXT)
+
+                # Consume the closing quotes
+                for _ in range(3): self.accept(['"', "'"])
+                self.emit_s(TOKEN_QUOTES)
+                break
+        return self.lex_text
+
+    def lex_text(self):
+        self.eat_whitespaces()
+        while True:
+            cursor = self.next_()
+            if cursor is None: # EOF
+                break
+            elif cursor == ':':
+                self.backup()
+                self.emit_s(TOKEN_LABEL)
+                self.next_()
+                self.ignore()
+                return self.lex_text
+            elif cursor == '#':
+                self.backup()
+                self.emit_s(TOKEN_TEXT)
+                self.next_()
+                return self.lex_comment
+            elif cursor == '|':
+                self.ignore()
+                return self.lex_field
+            elif cursor == '\n':
+                self.backup()
+                self.emit_s(TOKEN_TEXT)
+                self.next_()
+                self.emit_s(TOKEN_NEWLINE)
+                return self.lex_text
+            elif self.match_quotes(cursor):
+                for _ in range(2): self.accept(['"', "'"])
+                self.emit_s(TOKEN_QUOTES)
+                return self.lex_quotes
+
+        self.emit_s(TOKEN_TEXT)
+        self.emit(TOKEN_EOF)
+        return None
+
 
 class Parser(BaseParser):
 
@@ -181,8 +207,7 @@ class Parser(BaseParser):
     def next_(self):
         "Same as BaseParser.next_() but returns (None, None) instead of None on EOF"
         output = super(Parser, self).next_()
-        return (None, None) if output is None \
-            else output
+        return (None, None) if output is None else output
 
     def parse_title(self):
         title = []
@@ -214,33 +239,40 @@ class Parser(BaseParser):
             self.parse_title(),
             self.parse_steps())
 
+    def parse_step_text(self):
+        self.next_(); self.ignore()  # Skip enter QUOTES
+        token, step_text = self.next_()
+        assert token == TOKEN_TEXT   # XXX: Raise proper exception
+        token, _ = self.next_()      # Skip exit QUOTES
+        assert token == TOKEN_QUOTES # XXX: Raise proper exception
+        self.ignore()
+        return Ast.Text(step_text)
+
     def parse_steps(self):
         steps = []
         while True:
             token, value = self.next_()
-            if token == TOKEN_TEXT:
-                steps.append(Ast.Step(Ast.Text(value)))
-            elif token == TOKEN_LABEL:
+            if token == TOKEN_LABEL and self.match_label('examples', value):
                 # Special case, label `Examples' is not a step. Let's
-                # backup here and let `parse_scenarios()` deal with
-                # that.
-                if self.match_label('examples', value):
-                    self.backup()
-                    break
+                # backup here and let parse_scenarios() deal with that
+                self.backup()
+                return steps
 
-                # Fine, we're not parsing the `Examples' label, we
-                # must be either parsing a table or a multi-line
-                # string block.
-                self.eat_newlines()
-                if self.peek()[0] == TOKEN_TABLE_COLUMN:
-                    steps.append(Ast.Step(
-                        title=Ast.Text(value),
-                        table=self.parse_table()))
-                else:
-                    self.backup()
-                    break
-            elif token == TOKEN_NEWLINE:
+            self.eat_newlines()
+            next_token = self.peek()[0]
+
+            if token == TOKEN_NEWLINE:
                 self.ignore()
+            elif token in (TOKEN_LABEL, TOKEN_TEXT) and next_token == TOKEN_TABLE_COLUMN:
+                steps.append(Ast.Step(
+                    title=Ast.Text(value),
+                    table=self.parse_table()))
+            elif token in (TOKEN_LABEL, TOKEN_TEXT) and next_token == TOKEN_QUOTES:
+                steps.append(Ast.Step(
+                    title=Ast.Text(value),
+                    text=self.parse_step_text()))
+            elif token == TOKEN_TEXT:
+                steps.append(Ast.Step(title=Ast.Text(value)))
             else:
                 self.backup()
                 break
@@ -262,16 +294,17 @@ class Parser(BaseParser):
         return Ast.Table(fields=table)
 
     def parse_examples(self):
+        self.eat_newlines()
         token, value = self.next_()
         if token == TOKEN_LABEL and self.match_label('examples', value):
             self.eat_newlines()
             return Ast.Examples(table=self.parse_table())
         self.backup()
-        return None
 
     def parse_scenarios(self):
         scenarios = []
         while True:
+            self.eat_newlines()
             token, value = self.next_()
             if token in (None, TOKEN_EOF):
                 break  # EOF
@@ -364,13 +397,14 @@ class Ast:
                 self.title, self.description, self.steps, self.examples)
 
     class Step(Node):
-        def __init__(self, title, table=None):
+        def __init__(self, title, table=None, text=None):
             self.title = title
             self.table = table
+            self.text = text
 
         def __repr__(self):
-            return 'Step(title={}, table={})'.format(
-                self.title, self.table)
+            return 'Step(title={}, table={}, text={})'.format(
+                self.title, self.table, self.text)
 
     class Table(Node):
         def __init__(self, fields):
